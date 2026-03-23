@@ -57,7 +57,7 @@ function validateEnv() {
 
   if (!result.success) {
     const formatted = result.error.issues
-      .map((err: { path: (string | number)[]; message: string }) => `  - ${err.path.join('.')}: ${err.message}`)
+      .map((err) => `  - ${err.path.join('.')}: ${err.message}`)
       .join('\n');
 
     console.error('\n❌ Invalid environment configuration:\n');
