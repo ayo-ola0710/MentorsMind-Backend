@@ -2,12 +2,39 @@ import * as StellarSdk from '@stellar/stellar-sdk';
 import { env } from './env';
 import config from './index';
 
-export const server = new StellarSdk.Horizon.Server(config.stellar.horizonUrl);
+// ---------------------------------------------------------------------------
+// Network constants
+// ---------------------------------------------------------------------------
+
+const HORIZON_URLS: Record<string, { primary: string; backup: string }> = {
+  testnet: {
+    primary: 'https://horizon-testnet.stellar.org',
+    backup: 'https://horizon-testnet.stellar.org', // only one public testnet
+  },
+  mainnet: {
+    primary: 'https://horizon.stellar.org',
+    backup: 'https://horizon.stellar.org',
+  },
+};
+
+const networkKey = config.stellar.network === 'mainnet' ? 'mainnet' : 'testnet';
+
+export const horizonUrls = {
+  primary: config.stellar.horizonUrl || HORIZON_URLS[networkKey].primary,
+  backup: HORIZON_URLS[networkKey].backup,
+};
+
+export const server = new StellarSdk.Horizon.Server(horizonUrls.primary);
+export const backupServer = new StellarSdk.Horizon.Server(horizonUrls.backup);
 
 export const networkPassphrase =
   config.stellar.network === 'testnet'
     ? StellarSdk.Networks.TESTNET
     : StellarSdk.Networks.PUBLIC;
+
+// ---------------------------------------------------------------------------
+// Platform keypair helper
+// ---------------------------------------------------------------------------
 
 // Secret key is read directly from env — never stored in the config object
 export const getPlatformKeypair = (): StellarSdk.Keypair | null => {
@@ -18,6 +45,10 @@ export const getPlatformKeypair = (): StellarSdk.Keypair | null => {
   }
   return StellarSdk.Keypair.fromSecret(secretKey);
 };
+
+// ---------------------------------------------------------------------------
+// Connection test
+// ---------------------------------------------------------------------------
 
 export const testStellarConnection = async (): Promise<boolean> => {
   try {
