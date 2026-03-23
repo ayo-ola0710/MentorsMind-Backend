@@ -22,36 +22,15 @@ export const securityMiddleware = helmet({
   xssFilter: true,
 });
 
+import { sanitizeObject, detectAndLogSqlInjection } from '../utils/sanitization.utils';
+
 export const sanitizeInput = (req: Request, _res: Response, next: NextFunction): void => {
   if (req.body) {
     req.body = sanitizeObject(req.body);
+    // Optional: detect and log SQL injection on the entire body stringified
+    detectAndLogSqlInjection(JSON.stringify(req.body), 'body', req.headers['x-request-id'] as string);
   }
   // req.query and req.params are read-only getters in Express 5
   // sanitize body only; query/params are validated via Zod schemas
   next();
 };
-
-function sanitizeObject(obj: any): any {
-  if (typeof obj !== 'object' || obj === null) {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map(sanitizeObject);
-  }
-
-  const sanitized: any = {};
-  for (const key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      const value = obj[key];
-      if (typeof value === 'string') {
-        sanitized[key] = value.trim();
-      } else if (typeof value === 'object') {
-        sanitized[key] = sanitizeObject(value);
-      } else {
-        sanitized[key] = value;
-      }
-    }
-  }
-  return sanitized;
-}
