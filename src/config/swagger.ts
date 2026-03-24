@@ -63,12 +63,25 @@ Use the **Authorize** button (🔒) above to set your token for all requests.
     },
     tags: [
       { name: 'Health', description: 'Service health and readiness checks' },
-      { name: 'Auth', description: 'Registration, login, token refresh, and password management' },
+      {
+        name: 'Auth',
+        description:
+          'Registration, login, token refresh, and password management',
+      },
       { name: 'Users', description: 'User profile management' },
-      { name: 'Mentors', description: 'Mentor profiles and session scheduling' },
+      {
+        name: 'Mentors',
+        description: 'Mentor profiles and session scheduling',
+      },
       { name: 'Payments', description: 'Payment processing and escrow' },
-      { name: 'Wallets', description: 'Stellar wallet linking and transaction verification' },
-      { name: 'Admin', description: 'Platform administration (admin role required)' },
+      {
+        name: 'Wallets',
+        description: 'Stellar wallet linking and transaction verification',
+      },
+      {
+        name: 'Admin',
+        description: 'Platform administration (admin role required)',
+      },
     ],
   },
   apis: ['./src/routes/*.ts'],

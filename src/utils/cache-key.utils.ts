@@ -14,10 +14,10 @@ export const CacheKeys = {
 
 /** TTL presets in seconds */
 export const CacheTTL: Record<string, number> = {
-  short: 60,          // 1 min  — frequently changing data
-  medium: 300,        // 5 min  — user profiles, mentor lists
-  long: 3600,         // 1 hour — stats, config
-  veryLong: 86400,    // 1 day  — rarely changing data
+  short: 60, // 1 min  — frequently changing data
+  medium: 300, // 5 min  — user profiles, mentor lists
+  long: 3600, // 1 hour — stats, config
+  veryLong: 86400, // 1 day  — rarely changing data
 };
 
 /** Tags used for group invalidation */

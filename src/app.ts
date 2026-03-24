@@ -3,7 +3,10 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import config from './config';
 import { corsMiddleware } from './middleware/cors.middleware';
-import { securityMiddleware, sanitizeInput } from './middleware/security.middleware';
+import {
+  securityMiddleware,
+  sanitizeInput,
+} from './middleware/security.middleware';
 import { requestLogger } from './middleware/logging.middleware';
 import { generalLimiter } from './middleware/rate-limit.middleware';
 import { errorHandler } from './middleware/errorHandler';
@@ -29,11 +32,15 @@ app.set('trust proxy', 1);
 
 // Swagger docs
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use(`/api/${apiVersion}/docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'MentorMinds API Documentation',
-  swaggerOptions: { persistAuthorization: true },
-}));
+app.use(
+  `/api/${apiVersion}/docs`,
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'MentorMinds API Documentation',
+    swaggerOptions: { persistAuthorization: true },
+  }),
+);
 app.get(`/api/${apiVersion}/docs/spec.json`, (_req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);

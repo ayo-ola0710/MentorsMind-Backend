@@ -13,7 +13,10 @@ export interface CacheMetrics {
 
 // ─── In-Memory Fallback ───────────────────────────────────────────────────────
 
-interface MemEntry { value: string; expiresAt: number }
+interface MemEntry {
+  value: string;
+  expiresAt: number;
+}
 const memStore = new Map<string, MemEntry>();
 
 // Evict expired entries every minute
@@ -37,7 +40,9 @@ function memSet(key: string, value: string, ttlSeconds: number): void {
   memStore.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
 }
 
-function memDel(key: string): void { memStore.delete(key); }
+function memDel(key: string): void {
+  memStore.delete(key);
+}
 
 function memKeys(pattern: string): string[] {
   const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
@@ -64,21 +69,32 @@ async function getClient(): Promise<any | null> {
       logger.info('Cache: Redis connected');
     });
     redisClient.on('error', (err: Error) => {
-      if (redisAvailable) logger.warn('Cache: Redis lost — falling back to memory', { error: err.message });
+      if (redisAvailable)
+        logger.warn('Cache: Redis lost — falling back to memory', {
+          error: err.message,
+        });
       redisAvailable = false;
     });
 
     await redisClient.connect();
     return redisClient;
   } catch (err: any) {
-    logger.warn('Cache: Redis unavailable — using in-memory cache', { error: err.message });
+    logger.warn('Cache: Redis unavailable — using in-memory cache', {
+      error: err.message,
+    });
     return null;
   }
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
 
-const metrics: CacheMetrics = { hits: 0, misses: 0, sets: 0, deletes: 0, errors: 0 };
+const metrics: CacheMetrics = {
+  hits: 0,
+  misses: 0,
+  sets: 0,
+  deletes: 0,
+  errors: 0,
+};
 
 function track(event: keyof CacheMetrics, key: string): void {
   metrics[event]++;
@@ -95,7 +111,10 @@ export class CacheService {
     try {
       const client = await getClient();
       const raw = client ? await client.get(key) : memGet(key);
-      if (raw === null) { track('misses', key); return null; }
+      if (raw === null) {
+        track('misses', key);
+        return null;
+      }
       track('hits', key);
       return JSON.parse(raw) as T;
     } catch (err: any) {
@@ -106,7 +125,11 @@ export class CacheService {
   }
 
   /** Set a value with TTL in seconds */
-  static async set<T>(key: string, value: T, ttlSeconds = redisConfig.defaultTtl): Promise<void> {
+  static async set<T>(
+    key: string,
+    value: T,
+    ttlSeconds = redisConfig.defaultTtl,
+  ): Promise<void> {
     try {
       const serialized = JSON.stringify(value);
       const client = await getClient();
@@ -148,7 +171,10 @@ export class CacheService {
       logger.debug('Cache invalidated pattern', { pattern });
     } catch (err: any) {
       track('errors', pattern);
-      logger.warn('Cache invalidatePattern error', { pattern, error: err.message });
+      logger.warn('Cache invalidatePattern error', {
+        pattern,
+        error: err.message,
+      });
     }
   }
 
@@ -157,7 +183,11 @@ export class CacheService {
    * @example
    * const user = await CacheService.wrap(CacheKeys.user(id), CacheTTL.medium, () => db.findUser(id));
    */
-  static async wrap<T>(key: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T> {
+  static async wrap<T>(
+    key: string,
+    ttlSeconds: number,
+    fn: () => Promise<T>,
+  ): Promise<T> {
     const cached = await CacheService.get<T>(key);
     if (cached !== null) return cached;
     const value = await fn();
@@ -166,14 +196,22 @@ export class CacheService {
   }
 
   /** Returns current hit/miss/error counters */
-  static getMetrics(): CacheMetrics { return { ...metrics }; }
+  static getMetrics(): CacheMetrics {
+    return { ...metrics };
+  }
 
   /** Returns whether Redis is active */
-  static isDistributed(): boolean { return redisAvailable; }
+  static isDistributed(): boolean {
+    return redisAvailable;
+  }
 
   /** Warm the cache by pre-populating a set of key/value pairs */
-  static async warm<T>(entries: Array<{ key: string; ttl: number; fn: () => Promise<T> }>): Promise<void> {
-    await Promise.allSettled(entries.map(({ key, ttl, fn }) => CacheService.wrap(key, ttl, fn)));
+  static async warm<T>(
+    entries: Array<{ key: string; ttl: number; fn: () => Promise<T> }>,
+  ): Promise<void> {
+    await Promise.allSettled(
+      entries.map(({ key, ttl, fn }) => CacheService.wrap(key, ttl, fn)),
+    );
     logger.info('Cache warmed', { count: entries.length });
   }
 }

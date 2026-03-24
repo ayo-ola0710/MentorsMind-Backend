@@ -11,7 +11,7 @@ import { AdminService } from '../services/admin.service';
 const router = Router();
 
 // Initialize admin tables (async, don't block)
-AdminService.initialize().catch(err => {
+AdminService.initialize().catch((err) => {
   console.error('Failed to initialize admin tables:', err);
 });
 
@@ -38,21 +38,25 @@ router.use('/timezones', timezoneRoutes);
  *               $ref: '#/components/schemas/ApiResponse'
  */
 router.get('/', (_req, res) => {
-  ResponseUtil.success(res, {
-    version: '1.0.0',
-    name: 'MentorMinds Stellar API',
-    description: 'Backend API for MentorMinds platform',
-    endpoints: {
-      health: '/health',
-      auth: '/api/v1/auth',
-      users: '/api/v1/users',
-      mentors: '/api/v1/mentors',
-      bookings: '/api/v1/bookings',
-      payments: '/api/v1/payments',
-      wallets: '/api/v1/wallets',
+  ResponseUtil.success(
+    res,
+    {
+      version: '1.0.0',
+      name: 'MentorMinds Stellar API',
+      description: 'Backend API for MentorMinds platform',
+      endpoints: {
+        health: '/health',
+        auth: '/api/v1/auth',
+        users: '/api/v1/users',
+        mentors: '/api/v1/mentors',
+        bookings: '/api/v1/bookings',
+        payments: '/api/v1/payments',
+        wallets: '/api/v1/wallets',
+      },
+      documentation: '/api/docs',
     },
-    documentation: '/api/docs',
-  }, 'Welcome to MentorMinds API');
+    'Welcome to MentorMinds API',
+  );
 });
 
 /**
@@ -80,12 +84,16 @@ router.get('/', (_req, res) => {
  *                         version: { type: string, example: v1 }
  */
 router.get('/health', (_req, res) => {
-  ResponseUtil.success(res, {
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    version: process.env.API_VERSION || 'v1',
-  }, 'Service is healthy');
+  ResponseUtil.success(
+    res,
+    {
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      version: process.env.API_VERSION || 'v1',
+    },
+    'Service is healthy',
+  );
 });
 
 /**
@@ -123,7 +131,7 @@ router.get('/ready', async (_req, res) => {
     stellar: true, // TODO: Add Stellar network check
   };
 
-  const isReady = Object.values(checks).every(check => check === true);
+  const isReady = Object.values(checks).every((check) => check === true);
 
   if (isReady) {
     ResponseUtil.success(res, checks, 'Service is ready');

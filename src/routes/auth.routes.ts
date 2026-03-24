@@ -175,7 +175,11 @@ router.post('/logout', (_req, res) => {
  *               $ref: '#/components/schemas/ApiResponse'
  */
 router.post('/forgot-password', (_req, res) => {
-  ResponseUtil.success(res, null, 'Forgot password endpoint - to be implemented');
+  ResponseUtil.success(
+    res,
+    null,
+    'Forgot password endpoint - to be implemented',
+  );
 });
 
 /**
@@ -205,7 +209,11 @@ router.post('/forgot-password', (_req, res) => {
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/reset-password', (_req, res) => {
-  ResponseUtil.success(res, null, 'Reset password endpoint - to be implemented');
+  ResponseUtil.success(
+    res,
+    null,
+    'Reset password endpoint - to be implemented',
+  );
 });
 
 /**
@@ -243,7 +251,11 @@ router.post('/reset-password', (_req, res) => {
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/change-password', (_req, res) => {
-  ResponseUtil.success(res, null, 'Change password endpoint - to be implemented');
+  ResponseUtil.success(
+    res,
+    null,
+    'Change password endpoint - to be implemented',
+  );
 });
 
 export default router;

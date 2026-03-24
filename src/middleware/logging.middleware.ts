@@ -1,5 +1,5 @@
 import morgan from 'morgan';
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import config from '../config';
 
 morgan.token('user-id', (req: Request) => {
@@ -21,10 +21,14 @@ morgan.token('body', (req: Request) => {
 export const requestLogger = morgan(
   config.isDevelopment
     ? ':method :url :status :response-time ms - :user-id :body'
-    : ':remote-addr - :user-id [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"'
+    : ':remote-addr - :user-id [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"',
 );
 
-export const customLogger = (req: Request, res: Response, next: Function): void => {
+export const customLogger = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
   const start = Date.now();
 
   res.on('finish', () => {

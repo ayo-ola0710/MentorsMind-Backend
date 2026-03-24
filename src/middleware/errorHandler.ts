@@ -10,7 +10,7 @@ export const errorHandler = (
   err: AppError,
   req: Request,
   res: Response,
-  _next: NextFunction
+  _next: NextFunction,
 ) => {
   const statusCode = err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
@@ -27,14 +27,17 @@ export const errorHandler = (
     status: 'error',
     message,
     timestamp: new Date().toISOString(),
-    ...(process.env.NODE_ENV === 'development' && { 
+    ...(process.env.NODE_ENV === 'development' && {
       stack: err.stack,
       path: req.path,
-    })
+    }),
   });
 };
 
-export const createError = (message: string, statusCode: number = 500): AppError => {
+export const createError = (
+  message: string,
+  statusCode: number = 500,
+): AppError => {
   const error: AppError = new Error(message);
   error.statusCode = statusCode;
   error.isOperational = true;

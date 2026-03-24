@@ -218,7 +218,10 @@ router.get('/disputes', asyncHandler(AdminController.listDisputes));
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/disputes/:id/resolve', asyncHandler(AdminController.resolveDispute));
+router.post(
+  '/disputes/:id/resolve',
+  asyncHandler(AdminController.resolveDispute),
+);
 
 /**
  * @swagger

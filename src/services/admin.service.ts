@@ -1,7 +1,14 @@
 import pool from '../config/database';
-import { AuditLoggerService, AuditLogSearchParams, PaginatedAuditLogs } from './audit-logger.service';
+import {
+  AuditLoggerService,
+  AuditLogSearchParams,
+  PaginatedAuditLogs,
+} from './audit-logger.service';
 import { UserRecord } from './users.service';
-import { TransactionModel, TransactionRecord } from '../models/transaction.model';
+import {
+  TransactionModel,
+  TransactionRecord,
+} from '../models/transaction.model';
 import { DisputeModel, DisputeRecord } from '../models/dispute.model';
 import { SystemConfigModel } from '../models/system-config.model';
 import { stellarService } from './stellar.service';
@@ -34,12 +41,13 @@ export const AdminService = {
   },
 
   async getStats(): Promise<AdminStats> {
-    const [userCountResult, activeUserCountResult, txStats, openDisputes] = await Promise.all([
-      pool.query('SELECT COUNT(*) FROM users'),
-      pool.query("SELECT COUNT(*) FROM users WHERE is_active = true"),
-      TransactionModel.getStats(),
-      DisputeModel.countActive(),
-    ]);
+    const [userCountResult, activeUserCountResult, txStats, openDisputes] =
+      await Promise.all([
+        pool.query('SELECT COUNT(*) FROM users'),
+        pool.query('SELECT COUNT(*) FROM users WHERE is_active = true'),
+        TransactionModel.getStats(),
+        DisputeModel.countActive(),
+      ]);
 
     return {
       users: {
@@ -56,7 +64,11 @@ export const AdminService = {
     };
   },
 
-  async listUsers(limit = 50, offset = 0, role?: string): Promise<{ data: UserRecord[]; total: number }> {
+  async listUsers(
+    limit = 50,
+    offset = 0,
+    role?: string,
+  ): Promise<{ data: UserRecord[]; total: number }> {
     let query = 'SELECT * FROM users';
     const params: any[] = [];
     if (role) {
@@ -67,23 +79,32 @@ export const AdminService = {
     params.push(limit, offset);
 
     const { rows } = await pool.query<UserRecord>(query, params);
-    const countResult = await pool.query('SELECT COUNT(*) FROM users' + (role ? ' WHERE role = $1' : ''), role ? [role] : []);
-    
+    const countResult = await pool.query(
+      'SELECT COUNT(*) FROM users' + (role ? ' WHERE role = $1' : ''),
+      role ? [role] : [],
+    );
+
     return {
       data: rows,
       total: parseInt(countResult.rows[0].count, 10),
     };
   },
 
-  async updateUserStatus(id: string, isActive: boolean): Promise<UserRecord | null> {
+  async updateUserStatus(
+    id: string,
+    isActive: boolean,
+  ): Promise<UserRecord | null> {
     const { rows } = await pool.query<UserRecord>(
       'UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
-      [isActive, id]
+      [isActive, id],
     );
     return rows[0] || null;
   },
 
-  async listTransactions(limit = 50, offset = 0): Promise<{ data: TransactionRecord[]; total: number }> {
+  async listTransactions(
+    limit = 50,
+    offset = 0,
+  ): Promise<{ data: TransactionRecord[]; total: number }> {
     const [data, total] = await Promise.all([
       TransactionModel.findAll(limit, offset),
       TransactionModel.count(),
@@ -91,29 +112,42 @@ export const AdminService = {
     return { data, total };
   },
 
-  async listDisputes(limit = 50, offset = 0): Promise<{ data: DisputeRecord[]; total: number }> {
+  async listDisputes(
+    limit = 50,
+    offset = 0,
+  ): Promise<{ data: DisputeRecord[]; total: number }> {
     const [data, total] = await Promise.all([
       DisputeModel.findAll(limit, offset),
-      pool.query('SELECT COUNT(*) FROM disputes').then(r => parseInt(r.rows[0].count, 10)),
+      pool
+        .query('SELECT COUNT(*) FROM disputes')
+        .then((r) => parseInt(r.rows[0].count, 10)),
     ]);
     return { data, total };
   },
 
-  async resolveDispute(id: string, status: 'resolved' | 'dismissed', notes: string): Promise<DisputeRecord | null> {
+  async resolveDispute(
+    id: string,
+    status: 'resolved' | 'dismissed',
+    notes: string,
+  ): Promise<DisputeRecord | null> {
     return DisputeModel.updateStatus(id, status, notes);
   },
 
   async getSystemHealth(): Promise<any> {
-    const dbCheck = await pool.query('SELECT 1').then(() => 'UP').catch(() => 'DOWN');
+    const dbCheck = await pool
+      .query('SELECT 1')
+      .then(() => 'UP')
+      .catch(() => 'DOWN');
     let stellarCheck = 'UP';
     try {
       await stellarService.getAccount(process.env.PLATFORM_PUBLIC_KEY || '');
-    } catch (e) {
+    } catch {
       stellarCheck = 'DEGRADED';
     }
 
     return {
-      status: dbCheck === 'UP' && stellarCheck !== 'DOWN' ? 'HEALTHY' : 'UNHEALTHY',
+      status:
+        dbCheck === 'UP' && stellarCheck !== 'DOWN' ? 'HEALTHY' : 'UNHEALTHY',
       components: {
         database: dbCheck,
         stellar: stellarCheck,
@@ -136,5 +170,5 @@ export const AdminService = {
       entityType: 'CONFIG',
       entityId: key,
     });
-  }
+  },
 };

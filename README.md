@@ -40,7 +40,7 @@ The spec auto-updates on every server restart from JSDoc annotations in `src/rou
 
 ## 📋 Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 20+ and npm
 - PostgreSQL 14+
 - Stellar account (testnet for development)
 
@@ -377,6 +377,8 @@ CI will fail if coverage drops below 70%.
 2. Make your changes
 3. Run tests and linting
 4. Submit a pull request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming and PR conventions.
 
 ## 📄 License
 

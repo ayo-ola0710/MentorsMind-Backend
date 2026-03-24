@@ -7,7 +7,11 @@ export const commonSchemas = {
   ApiResponse: {
     type: 'object',
     properties: {
-      status: { type: 'string', enum: ['success', 'error', 'fail'], example: 'success' },
+      status: {
+        type: 'string',
+        enum: ['success', 'error', 'fail'],
+        example: 'success',
+      },
       message: { type: 'string', example: 'Operation successful' },
       data: { type: 'object', nullable: true },
       timestamp: { type: 'string', format: 'date-time' },
@@ -52,9 +56,21 @@ export const commonSchemas = {
   },
 
   PaginationQuery: [
-    { name: 'page', in: 'query', schema: { type: 'integer', default: 1, minimum: 1 } },
-    { name: 'limit', in: 'query', schema: { type: 'integer', default: 10, minimum: 1, maximum: 100 } },
-    { name: 'sortOrder', in: 'query', schema: { type: 'string', enum: ['asc', 'desc'], default: 'desc' } },
+    {
+      name: 'page',
+      in: 'query',
+      schema: { type: 'integer', default: 1, minimum: 1 },
+    },
+    {
+      name: 'limit',
+      in: 'query',
+      schema: { type: 'integer', default: 10, minimum: 1, maximum: 100 },
+    },
+    {
+      name: 'sortOrder',
+      in: 'query',
+      schema: { type: 'string', enum: ['asc', 'desc'], default: 'desc' },
+    },
   ],
 };
 
@@ -65,8 +81,18 @@ export const authSchemas = {
     properties: {
       email: { type: 'string', format: 'email', example: 'user@example.com' },
       password: { type: 'string', minLength: 8, example: 'SecurePass1' },
-      firstName: { type: 'string', minLength: 2, maxLength: 100, example: 'Jane' },
-      lastName: { type: 'string', minLength: 2, maxLength: 100, example: 'Doe' },
+      firstName: {
+        type: 'string',
+        minLength: 2,
+        maxLength: 100,
+        example: 'Jane',
+      },
+      lastName: {
+        type: 'string',
+        minLength: 2,
+        maxLength: 100,
+        example: 'Doe',
+      },
       role: { type: 'string', enum: ['mentee', 'mentor'], default: 'mentee' },
     },
   },
@@ -83,8 +109,14 @@ export const authSchemas = {
   AuthTokens: {
     type: 'object',
     properties: {
-      accessToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
-      refreshToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
+      accessToken: {
+        type: 'string',
+        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      },
+      refreshToken: {
+        type: 'string',
+        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      },
       expiresIn: { type: 'integer', example: 3600 },
     },
   },
@@ -93,7 +125,10 @@ export const authSchemas = {
     type: 'object',
     required: ['refreshToken'],
     properties: {
-      refreshToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
+      refreshToken: {
+        type: 'string',
+        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      },
     },
   },
 
@@ -128,12 +163,20 @@ export const userSchemas = {
   User: {
     type: 'object',
     properties: {
-      id: { type: 'string', format: 'uuid', example: '123e4567-e89b-12d3-a456-426614174000' },
+      id: {
+        type: 'string',
+        format: 'uuid',
+        example: '123e4567-e89b-12d3-a456-426614174000',
+      },
       email: { type: 'string', format: 'email', example: 'user@example.com' },
       firstName: { type: 'string', example: 'Jane' },
       lastName: { type: 'string', example: 'Doe' },
       role: { type: 'string', enum: ['mentee', 'mentor', 'admin'] },
-      bio: { type: 'string', nullable: true, example: 'Experienced software engineer' },
+      bio: {
+        type: 'string',
+        nullable: true,
+        example: 'Experienced software engineer',
+      },
       avatarUrl: { type: 'string', format: 'uri', nullable: true },
       isActive: { type: 'boolean', example: true },
       createdAt: { type: 'string', format: 'date-time' },
@@ -156,10 +199,28 @@ export const userSchemas = {
   UpdateUserRequest: {
     type: 'object',
     properties: {
-      firstName: { type: 'string', minLength: 2, maxLength: 100, example: 'Jane' },
-      lastName: { type: 'string', minLength: 2, maxLength: 100, example: 'Doe' },
-      bio: { type: 'string', maxLength: 2000, example: 'Experienced software engineer' },
-      avatarUrl: { type: 'string', format: 'uri', example: 'https://example.com/avatar.jpg' },
+      firstName: {
+        type: 'string',
+        minLength: 2,
+        maxLength: 100,
+        example: 'Jane',
+      },
+      lastName: {
+        type: 'string',
+        minLength: 2,
+        maxLength: 100,
+        example: 'Doe',
+      },
+      bio: {
+        type: 'string',
+        maxLength: 2000,
+        example: 'Experienced software engineer',
+      },
+      avatarUrl: {
+        type: 'string',
+        format: 'uri',
+        example: 'https://example.com/avatar.jpg',
+      },
     },
   },
 
@@ -182,9 +243,16 @@ export const mentorSchemas = {
     properties: {
       id: { type: 'string', format: 'uuid' },
       userId: { type: 'string', format: 'uuid' },
-      headline: { type: 'string', example: 'Senior Software Engineer at FAANG' },
+      headline: {
+        type: 'string',
+        example: 'Senior Software Engineer at FAANG',
+      },
       bio: { type: 'string', example: '10+ years building scalable systems' },
-      skills: { type: 'array', items: { type: 'string' }, example: ['TypeScript', 'Node.js', 'AWS'] },
+      skills: {
+        type: 'array',
+        items: { type: 'string' },
+        example: ['TypeScript', 'Node.js', 'AWS'],
+      },
       hourlyRate: { type: 'number', example: 150 },
       currency: { type: 'string', example: 'USD' },
       timezone: { type: 'string', example: 'America/New_York' },
@@ -197,7 +265,11 @@ export const mentorSchemas = {
   UpdateMentorProfileRequest: {
     type: 'object',
     properties: {
-      headline: { type: 'string', maxLength: 200, example: 'Senior Software Engineer' },
+      headline: {
+        type: 'string',
+        maxLength: 200,
+        example: 'Senior Software Engineer',
+      },
       bio: { type: 'string', maxLength: 2000 },
       skills: { type: 'array', items: { type: 'string' }, maxItems: 30 },
       hourlyRate: { type: 'number', minimum: 0, maximum: 10000, example: 150 },
@@ -219,7 +291,10 @@ export const mentorSchemas = {
       durationMinutes: { type: 'integer', example: 60 },
       topic: { type: 'string', example: 'System Design Interview Prep' },
       notes: { type: 'string', nullable: true },
-      status: { type: 'string', enum: ['pending', 'confirmed', 'cancelled', 'completed'] },
+      status: {
+        type: 'string',
+        enum: ['pending', 'confirmed', 'cancelled', 'completed'],
+      },
       createdAt: { type: 'string', format: 'date-time' },
     },
   },
@@ -228,9 +303,22 @@ export const mentorSchemas = {
     type: 'object',
     required: ['mentorId', 'scheduledAt', 'durationMinutes', 'topic'],
     properties: {
-      mentorId: { type: 'string', format: 'uuid', example: '123e4567-e89b-12d3-a456-426614174000' },
-      scheduledAt: { type: 'string', format: 'date-time', example: '2026-04-01T14:00:00Z' },
-      durationMinutes: { type: 'integer', minimum: 15, maximum: 240, example: 60 },
+      mentorId: {
+        type: 'string',
+        format: 'uuid',
+        example: '123e4567-e89b-12d3-a456-426614174000',
+      },
+      scheduledAt: {
+        type: 'string',
+        format: 'date-time',
+        example: '2026-04-01T14:00:00Z',
+      },
+      durationMinutes: {
+        type: 'integer',
+        minimum: 15,
+        maximum: 240,
+        example: 60,
+      },
       topic: { type: 'string', example: 'System Design Interview Prep' },
       notes: { type: 'string', example: 'Focus on distributed systems' },
     },
@@ -271,7 +359,12 @@ export const walletSchemas = {
     type: 'object',
     required: ['transactionHash', 'expectedAmount'],
     properties: {
-      transactionHash: { type: 'string', minLength: 64, maxLength: 64, example: 'abc123...def456' },
+      transactionHash: {
+        type: 'string',
+        minLength: 64,
+        maxLength: 64,
+        example: 'abc123...def456',
+      },
       expectedAmount: { type: 'string', example: '50.0000000' },
       assetCode: { type: 'string', example: 'XLM' },
     },

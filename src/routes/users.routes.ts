@@ -87,7 +87,11 @@ router.get('/me', asyncHandler(UsersController.getMe));
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.put('/me', validate(updateMeSchema), asyncHandler(UsersController.updateMe));
+router.put(
+  '/me',
+  validate(updateMeSchema),
+  asyncHandler(UsersController.updateMe),
+);
 
 /**
  * @swagger
@@ -133,7 +137,11 @@ router.put('/me', validate(updateMeSchema), asyncHandler(UsersController.updateM
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/avatar', validate(avatarUploadSchema), asyncHandler(UsersController.uploadAvatar));
+router.post(
+  '/avatar',
+  validate(avatarUploadSchema),
+  asyncHandler(UsersController.uploadAvatar),
+);
 
 /**
  * @swagger
@@ -164,7 +172,11 @@ router.post('/avatar', validate(avatarUploadSchema), asyncHandler(UsersControlle
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/:id/public', validate(idParamSchema), asyncHandler(UsersController.getPublicUser));
+router.get(
+  '/:id/public',
+  validate(idParamSchema),
+  asyncHandler(UsersController.getPublicUser),
+);
 
 /**
  * @swagger
@@ -201,7 +213,12 @@ router.get('/:id/public', validate(idParamSchema), asyncHandler(UsersController.
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/:id', validate(idParamSchema), requireOwnerOrAdmin, asyncHandler(UsersController.getUser));
+router.get(
+  '/:id',
+  validate(idParamSchema),
+  requireOwnerOrAdmin,
+  asyncHandler(UsersController.getUser),
+);
 
 /**
  * @swagger
@@ -248,7 +265,7 @@ router.put(
   '/:id',
   validate(updateUserSchema),
   requireOwnerOrAdmin,
-  asyncHandler(UsersController.updateUser)
+  asyncHandler(UsersController.updateUser),
 );
 
 /**
@@ -281,7 +298,7 @@ router.delete(
   '/:id',
   validate(idParamSchema),
   requireOwnerOrAdmin,
-  asyncHandler(UsersController.deleteUser)
+  asyncHandler(UsersController.deleteUser),
 );
 
 export default router;
