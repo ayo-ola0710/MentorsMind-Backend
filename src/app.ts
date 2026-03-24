@@ -32,8 +32,9 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use(`/api/${apiVersion}/docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: 'MentorMinds API Documentation',
+  swaggerOptions: { persistAuthorization: true },
 }));
-app.get(`/api/${apiVersion}/docs.json`, (_req, res) => {
+app.get(`/api/${apiVersion}/docs/spec.json`, (_req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);
 });

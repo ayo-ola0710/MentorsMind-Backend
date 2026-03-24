@@ -1,89 +1,75 @@
-export const swaggerDefinition = {
-  openapi: '3.0.0',
-  info: {
-    title: 'MentorMinds Stellar API',
-    version: '1.0.0',
-    description: 'Backend API for MentorMinds platform - connecting mentors and mentees with Stellar blockchain integration',
-    contact: {
-      name: 'MentorMinds Team',
-      email: 'support@mentorminds.com',
-    },
-    license: {
-      name: 'MIT',
-      url: 'https://opensource.org/licenses/MIT',
-    },
-  },
-  servers: [
-    {
-      url: `http://localhost:${process.env.PORT || 5000}/api/${process.env.API_VERSION || 'v1'}`,
-      description: 'Development server',
-    },
-    {
-      url: `https://api.mentorminds.com/api/${process.env.API_VERSION || 'v1'}`,
-      description: 'Production server',
-    },
-  ],
-  components: {
-    securitySchemes: {
-      bearerAuth: {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-      },
-    },
-    schemas: {
-      ApiResponse: {
-        type: 'object',
-        properties: {
-          status: {
-            type: 'string',
-            enum: ['success', 'error', 'fail'],
-          },
-          message: {
-            type: 'string',
-          },
-          data: {
-            type: 'object',
-          },
-          timestamp: {
-            type: 'string',
-            format: 'date-time',
-          },
-        },
-      },
-      Error: {
-        type: 'object',
-        properties: {
-          status: {
-            type: 'string',
-            enum: ['error', 'fail'],
-          },
-          message: {
-            type: 'string',
-          },
-          error: {
-            type: 'string',
-          },
-          timestamp: {
-            type: 'string',
-            format: 'date-time',
-          },
-        },
-      },
-    },
-  },
-  tags: [
-    { name: 'Health', description: 'Health check endpoints' },
-    { name: 'Auth', description: 'Authentication endpoints' },
-    { name: 'Users', description: 'User management endpoints' },
-    { name: 'Mentors', description: 'Mentor management endpoints' },
-    { name: 'Bookings', description: 'Booking management endpoints' },
-    { name: 'Payments', description: 'Payment processing endpoints' },
-    { name: 'Wallets', description: 'Stellar wallet endpoints' },
-  ],
-};
+import {
+  commonSchemas,
+  authSchemas,
+  userSchemas,
+  mentorSchemas,
+  walletSchemas,
+  adminSchemas,
+} from '../docs/schemas/common.schema';
+import config from './index';
+
+const { port, apiVersion } = config.server;
 
 export const swaggerOptions = {
-  swaggerDefinition,
-  apis: ['./src/routes/*.ts', './src/controllers/*.ts'],
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'MentorMinds Stellar API',
+      version: '1.0.0',
+      description: `
+## Overview
+Backend API for the MentorMinds platform — connecting mentors and mentees with Stellar blockchain payments.
+
+## Authentication
+Most endpoints require a **Bearer JWT token**. Obtain tokens via \`POST /auth/login\` or \`POST /auth/register\`.
+
+Include the token in the \`Authorization\` header:
+\`\`\`
+Authorization: Bearer <your_access_token>
+\`\`\`
+
+Use the **Authorize** button (🔒) above to set your token for all requests.
+      `.trim(),
+      contact: { name: 'MentorMinds Team', email: 'support@mentorminds.com' },
+      license: { name: 'MIT', url: 'https://opensource.org/licenses/MIT' },
+    },
+    servers: [
+      {
+        url: `http://localhost:${port}/api/${apiVersion}`,
+        description: 'Development server',
+      },
+      {
+        url: `https://api.mentorminds.com/api/${apiVersion}`,
+        description: 'Production server',
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Enter your JWT access token obtained from /auth/login',
+        },
+      },
+      schemas: {
+        ...commonSchemas,
+        ...authSchemas,
+        ...userSchemas,
+        ...mentorSchemas,
+        ...walletSchemas,
+        ...adminSchemas,
+      },
+    },
+    tags: [
+      { name: 'Health', description: 'Service health and readiness checks' },
+      { name: 'Auth', description: 'Registration, login, token refresh, and password management' },
+      { name: 'Users', description: 'User profile management' },
+      { name: 'Mentors', description: 'Mentor profiles and session scheduling' },
+      { name: 'Payments', description: 'Payment processing and escrow' },
+      { name: 'Wallets', description: 'Stellar wallet linking and transaction verification' },
+      { name: 'Admin', description: 'Platform administration (admin role required)' },
+    ],
+  },
+  apis: ['./src/routes/*.ts'],
 };

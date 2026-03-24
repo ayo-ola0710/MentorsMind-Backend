@@ -13,7 +13,6 @@ import { idParamSchema } from '../validators/schemas/common.schemas';
 
 const router = Router();
 
-// All user routes require authentication
 router.use(authenticate);
 
 /**
@@ -27,8 +26,21 @@ router.use(authenticate);
  *     responses:
  *       200:
  *         description: Current user profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
  *       401:
  *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/me', asyncHandler(UsersController.getMe));
 
@@ -41,19 +53,39 @@ router.get('/me', asyncHandler(UsersController.getMe));
  *     security:
  *       - bearerAuth: []
  *     requestBody:
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               firstName: { type: string }
- *               lastName: { type: string }
- *               bio: { type: string }
+ *             $ref: '#/components/schemas/UpdateUserRequest'
+ *           example:
+ *             firstName: Jane
+ *             lastName: Doe
+ *             bio: Experienced software engineer with 10 years in the industry
  *     responses:
  *       200:
- *         description: Updated profile
+ *         description: Profile updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
  *       400:
  *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.put('/me', validate(updateMeSchema), asyncHandler(UsersController.updateMe));
 
@@ -70,17 +102,36 @@ router.put('/me', validate(updateMeSchema), asyncHandler(UsersController.updateM
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required: [avatarBase64]
- *             properties:
- *               avatarBase64:
- *                 type: string
- *                 description: Base64-encoded image (data:image/jpeg;base64,...)
+ *             $ref: '#/components/schemas/AvatarUploadRequest'
  *     responses:
  *       200:
- *         description: Avatar updated
+ *         description: Avatar updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         avatarUrl:
+ *                           type: string
+ *                           format: uri
+ *                           example: https://cdn.mentorminds.com/avatars/user-123.jpg
  *       400:
- *         description: Validation error
+ *         description: Invalid image data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/avatar', validate(avatarUploadSchema), asyncHandler(UsersController.uploadAvatar));
 
@@ -93,15 +144,25 @@ router.post('/avatar', validate(avatarUploadSchema), asyncHandler(UsersControlle
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
+ *       - $ref: '#/components/schemas/UUIDParam'
  *     responses:
  *       200:
  *         description: Public user profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/PublicUser'
  *       404:
  *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/:id/public', validate(idParamSchema), asyncHandler(UsersController.getPublicUser));
 
@@ -109,22 +170,36 @@ router.get('/:id/public', validate(idParamSchema), asyncHandler(UsersController.
  * @swagger
  * /users/{id}:
  *   get:
- *     summary: Get user by ID (owner or admin)
+ *     summary: Get user by ID (owner or admin only)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
+ *       - $ref: '#/components/schemas/UUIDParam'
  *     responses:
  *       200:
  *         description: User profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
  *       403:
- *         description: Forbidden
+ *         description: Forbidden — not the owner or admin
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       404:
- *         description: Not found
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/:id', validate(idParamSchema), requireOwnerOrAdmin, asyncHandler(UsersController.getUser));
 
@@ -132,29 +207,42 @@ router.get('/:id', validate(idParamSchema), requireOwnerOrAdmin, asyncHandler(Us
  * @swagger
  * /users/{id}:
  *   put:
- *     summary: Update user by ID (owner or admin)
+ *     summary: Update user by ID (owner or admin only)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
+ *       - $ref: '#/components/schemas/UUIDParam'
  *     requestBody:
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               firstName: { type: string }
- *               lastName: { type: string }
- *               bio: { type: string }
+ *             $ref: '#/components/schemas/UpdateUserRequest'
  *     responses:
  *       200:
- *         description: Updated user
+ *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
  *       403:
  *         description: Forbidden
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.put(
   '/:id',
@@ -167,22 +255,27 @@ router.put(
  * @swagger
  * /users/{id}:
  *   delete:
- *     summary: Delete (deactivate) user by ID (owner or admin)
+ *     summary: Deactivate user by ID (owner or admin only)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
+ *       - $ref: '#/components/schemas/UUIDParam'
  *     responses:
  *       204:
- *         description: Deleted
+ *         description: User deactivated successfully
  *       403:
  *         description: Forbidden
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       404:
- *         description: Not found
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.delete(
   '/:id',

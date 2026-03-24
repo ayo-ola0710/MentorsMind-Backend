@@ -13,6 +13,25 @@ Backend API server for the MentorMinds Stellar platform, built with Node.js, Exp
 - **Security** with Helmet and CORS
 - **Logging** with Morgan
 - **Environment Configuration** with dotenv
+- **Interactive API Docs** with Swagger UI (OpenAPI 3.0)
+
+## 📖 API Documentation
+
+Once the server is running, interactive API documentation is available at:
+
+| URL | Description |
+|-----|-------------|
+| `http://localhost:5000/api/v1/docs` | Swagger UI — explore and test all endpoints |
+| `http://localhost:5000/api/v1/docs/spec.json` | Raw OpenAPI 3.0 spec (JSON) |
+
+### Using Swagger UI
+
+1. Open `http://localhost:5000/api/v1/docs` in your browser
+2. Click **Authorize** (🔒) and enter your JWT token: `Bearer <your_access_token>`
+3. Obtain a token via `POST /auth/login` or `POST /auth/register`
+4. Explore endpoints grouped by tag: **Auth**, **Users**, **Mentors**, **Payments**, **Wallets**, **Admin**
+
+The spec auto-updates on every server restart from JSDoc annotations in `src/routes/*.ts`.
 
 ## 📋 Prerequisites
 
