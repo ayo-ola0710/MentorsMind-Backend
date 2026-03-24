@@ -3,6 +3,7 @@ import { ResponseUtil } from '../utils/response.utils';
 import authRoutes from './auth.routes';
 import usersRoutes from './users.routes';
 import adminRoutes from './admin.routes';
+import bookingsRoutes from './bookings.routes';
 import timezoneRoutes from './timezone.routes';
 import { AdminService } from '../services/admin.service';
 
@@ -17,6 +18,7 @@ AdminService.initialize().catch(err => {
 router.use('/auth', authRoutes);
 router.use('/users', usersRoutes);
 router.use('/admin', adminRoutes);
+router.use('/bookings', bookingsRoutes);
 router.use('/timezones', timezoneRoutes);
 
 /**
