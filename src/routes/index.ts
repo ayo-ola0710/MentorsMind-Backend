@@ -7,6 +7,7 @@ import adminRoutes from './admin.routes';
 import bookingsRoutes from './bookings.routes';
 import timezoneRoutes from './timezone.routes';
 import mentorsRoutes from './mentors.routes';
+import paymentsRoutes from './payments.routes';
 import { AdminService } from '../services/admin.service';
 import { BookingsService } from '../services/bookings.service';
 
@@ -30,6 +31,7 @@ router.use('/admin', adminRoutes);
 router.use('/bookings', bookingsRoutes);
 router.use('/timezones', timezoneRoutes);
 router.use('/mentors', mentorsRoutes);
+router.use('/payments', paymentsRoutes);
 
 // ── Root info ────────────────────────────────────────────────────────────────
 /**

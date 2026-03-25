@@ -1,0 +1,124 @@
+/**
+ * Payments Controller
+ */
+
+import { Response } from 'express';
+import { AuthenticatedRequest } from '../types/api.types';
+import { PaymentsService, PaymentStatus, PaymentType } from '../services/payments.service';
+import { ResponseUtil } from '../utils/response.utils';
+import { InitiatePaymentInput, ConfirmPaymentInput, ListPaymentsQuery } from '../validators/schemas/payments.schemas';
+
+export const PaymentsController = {
+  /** POST /api/v1/payments */
+  async initiatePayment(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const userId = req.user!.id;
+    const { bookingId, amount, currency, description, fromAddress, toAddress } = req.body as InitiatePaymentInput;
+
+    const payment = await PaymentsService.initiatePayment({
+      userId,
+      bookingId,
+      amount,
+      currency,
+      description,
+      fromAddress,
+      toAddress,
+    });
+
+    ResponseUtil.created(res, payment, 'Payment initiated successfully');
+  },
+
+  /** GET /api/v1/payments/:id */
+  async getPayment(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const userId = req.user!.id;
+    const { id } = req.params;
+
+    const payment = await PaymentsService.getPaymentById(id, userId);
+    ResponseUtil.success(res, payment, 'Payment retrieved successfully');
+  },
+
+  /** GET /api/v1/payments/:id/status */
+  async getPaymentStatus(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const userId = req.user!.id;
+    const { id } = req.params;
+
+    const status = await PaymentsService.getPaymentStatus(id, userId);
+    ResponseUtil.success(res, status, 'Payment status retrieved successfully');
+  },
+
+  /** POST /api/v1/payments/:id/confirm */
+  async confirmPayment(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const userId = req.user!.id;
+    const { id } = req.params;
+    const { stellarTxHash } = req.body as ConfirmPaymentInput;
+
+    const payment = await PaymentsService.confirmPayment(id, userId, stellarTxHash);
+    ResponseUtil.success(res, payment, 'Payment confirmed successfully');
+  },
+
+  /** GET /api/v1/payments */
+  async listPayments(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const userId = req.user!.id;
+    const { page, limit, status, type, from, to } = req.query as unknown as ListPaymentsQuery;
+
+    const result = await PaymentsService.listUserPayments(userId, {
+      page,
+      limit,
+      status: status as PaymentStatus | undefined,
+      type: type as PaymentType | undefined,
+      from,
+      to,
+    });
+
+    const totalPages = Math.ceil(result.total / (limit ?? 20));
+
+    ResponseUtil.success(res, result.payments, 'Payments retrieved successfully', 200, {
+      page: page ?? 1,
+      limit: limit ?? 20,
+      total: result.total,
+      totalPages,
+      hasNext: (page ?? 1) < totalPages,
+      hasPrev: (page ?? 1) > 1,
+    });
+  },
+
+  /** POST /api/v1/payments/:id/refund */
+  async refundPayment(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const userId = req.user!.id;
+    const { id } = req.params;
+    const { reason, stellarTxHash } = req.body ?? {};
+
+    const payment = await PaymentsService.refundPayment(id, userId, reason, stellarTxHash);
+    ResponseUtil.success(res, payment, 'Payment refunded successfully');
+  },
+
+  /** GET /api/v1/payments/history */
+  async getPaymentHistory(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const userId = req.user!.id;
+    const { page, limit, from, to } = req.query as unknown as ListPaymentsQuery;
+
+    const result = await PaymentsService.getPaymentHistory(userId, { page, limit, from, to });
+
+    const totalPages = Math.ceil(result.total / (limit ?? 20));
+
+    ResponseUtil.success(
+      res,
+      { payments: result.payments, totalVolume: result.totalVolume },
+      'Payment history retrieved successfully',
+      200,
+      {
+        page: page ?? 1,
+        limit: limit ?? 20,
+        total: result.total,
+        totalPages,
+        hasNext: (page ?? 1) < totalPages,
+        hasPrev: (page ?? 1) > 1,
+      },
+    );
+  },
+
+  /** POST /api/v1/payments/webhook */
+  async handleWebhook(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const result = await PaymentsService.handleWebhook(req.body);
+    ResponseUtil.success(res, result, result.message);
+  },
+};
