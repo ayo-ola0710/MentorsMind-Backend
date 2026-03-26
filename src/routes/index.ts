@@ -8,9 +8,15 @@ import bookingsRoutes from './bookings.routes';
 import timezoneRoutes from './timezone.routes';
 import mentorsRoutes from './mentors.routes';
 import paymentsRoutes from './payments.routes';
+import notificationsRoutes from './notifications.routes';
 import { AdminService } from '../services/admin.service';
 import { BookingsService } from '../services/bookings.service';
+import { notificationCleanupService } from '../services/notification-cleanup.service';
 import { logger } from '../utils/logger';
+import { asyncHandler } from '../utils/asyncHandler.utils';
+import HealthService from '../services/health.service';
+import { HealthController } from '../controllers/health.controller';
+import { CURRENT_VERSION, SUPPORTED_VERSIONS } from '../config/api-versions.config';
 
 const router = Router();
 
@@ -24,6 +30,11 @@ BookingsService.initialize().catch(err => {
   logger.error('Failed to initialize bookings tables:', err);
 });
 
+// Initialize notification cleanup service (async, don't block)
+notificationCleanupService.initialize().catch(err => {
+  logger.error('Failed to initialize notification cleanup service:', err);
+});
+
 // Mount route modules
 router.use('/auth', authRoutes);
 router.use('/users', usersRoutes);
@@ -33,6 +44,7 @@ router.use('/bookings', bookingsRoutes);
 router.use('/timezones', timezoneRoutes);
 router.use('/mentors', mentorsRoutes);
 router.use('/payments', paymentsRoutes);
+router.use('/notifications', notificationsRoutes);
 
 // ── Root info ────────────────────────────────────────────────────────────────
 /**
@@ -58,6 +70,7 @@ router.get('/', (_req, res) => {
         auth: '/api/v1/auth',
         users: '/api/v1/users',
         bookings: '/api/v1/bookings',
+        notifications: '/api/v1/notifications',
       },
       documentation: '/api/v1/docs',
     },
