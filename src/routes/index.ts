@@ -11,6 +11,7 @@ import paymentsRoutes from "./payments.routes";
 import reviewsRoutes from "./reviews.routes";
 import { AdminService } from "../services/admin.service";
 import { BookingsService } from "../services/bookings.service";
+import { VerificationService } from "../services/verification.service";
 import { logger } from "../utils/logger";
 
 const router = Router();
@@ -23,6 +24,11 @@ AdminService.initialize().catch((err) => {
 // Initialize bookings tables (async, don't block)
 BookingsService.initialize().catch((err) => {
   logger.error("Failed to initialize bookings tables:", err);
+});
+
+// Initialize verification tables (async, don't block)
+VerificationService.initialize().catch((err) => {
+  logger.error("Failed to initialize verification tables:", err);
 });
 
 // Initialize notification cleanup service (async, don't block)
