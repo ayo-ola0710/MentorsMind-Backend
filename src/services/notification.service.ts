@@ -4,6 +4,7 @@ import { NotificationDeliveryTrackingModel, DeliveryStatus } from '../models/not
 import { NotificationAnalyticsModel } from '../models/notification-analytics.model';
 import { enqueueEmail } from '../queues/email.queue';
 import { SocketService } from './socket.service';
+import { PushService } from './push.service';
 import { logger } from '../utils/logger';
 
 export interface NotificationRecord {
@@ -158,6 +159,22 @@ export const NotificationService = {
         });
       } catch (error) {
         logger.error('Failed to emit notification:new event', { error, notificationId: notification.id });
+      }
+
+      // Send push notification if channel is PUSH
+      if (input.channel === NotificationChannel.PUSH) {
+        try {
+          await PushService.sendToUser(
+            notification.user_id,
+            notification.title,
+            notification.message,
+            notification.data ? Object.fromEntries(
+              Object.entries(notification.data).map(([k, v]) => [k, String(v)])
+            ) : undefined
+          );
+        } catch (error) {
+          logger.error('Failed to send push notification', { error, notificationId: notification.id });
+        }
       }
     }
 

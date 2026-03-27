@@ -65,6 +65,13 @@ const envSchema = z.object({
 
   // Platform
   PLATFORM_FEE_PERCENTAGE: z.string().regex(/^\d+$/).default('5'),
+
+  // Monitoring (optional)
+  PROMETHEUS_ENABLED: z.string().optional(),
+  PROMETHEUS_PORT: z.string().regex(/^\d+$/).optional(),
+  PROMETHEUS_ENDPOINT: z.string().optional(),
+  HEALTH_CHECK_INTERVAL: z.string().regex(/^\d+$/).optional(),
+  HEALTH_CHECK_TIMEOUT: z.string().regex(/^\d+$/).optional(),
 });
 
 function validateEnv() {

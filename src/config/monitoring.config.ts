@@ -1,5 +1,4 @@
 import { env } from './env';
-import config from './index';
 
 /**
  * Monitoring and Metrics Configuration
@@ -41,7 +40,7 @@ export interface MonitoringConfig {
  */
 export const monitoringConfig: MonitoringConfig = {
   prometheus: {
-    enabled: config.isDevelopment || env.PROMETHEUS_ENABLED === 'true',
+    enabled: env.NODE_ENV === 'development' || env.PROMETHEUS_ENABLED === 'true',
     port: parseInt(env.PROMETHEUS_PORT || '9090', 10),
     endpoint: env.PROMETHEUS_ENDPOINT || '/metrics',
   },
@@ -57,13 +56,13 @@ export const monitoringConfig: MonitoringConfig = {
     trackStellar: true,
     labels: {
       app: 'mentorminds',
-      version: config.apiVersion,
-      environment: config.nodeEnv,
+      version: env.API_VERSION,
+      environment: env.NODE_ENV,
     },
   },
   logging: {
     structuredHealth: true,
-    logHealthEvents: config.isDevelopment,
+    logHealthEvents: env.NODE_ENV === 'development',
   },
 };
 

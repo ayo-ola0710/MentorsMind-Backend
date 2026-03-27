@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { NotificationsController } from '../controllers/notifications.controller';
+import { PushController } from '../controllers/push.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -169,6 +170,96 @@ router.put('/:id/read', authenticate, NotificationsController.markAsRead);
  *         description: Notification not found
  */
 router.delete('/:id', authenticate, NotificationsController.deleteNotification);
+
+/**
+ * @swagger
+ * /api/v1/notifications/push/subscribe:
+ *   post:
+ *     summary: Subscribe to push notifications
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: FCM device token
+ *               deviceType:
+ *                 type: string
+ *                 enum: [web, android, ios]
+ *               deviceId:
+ *                 type: string
+ *                 description: Unique device identifier
+ *     responses:
+ *       200:
+ *         description: Successfully subscribed
+ *       400:
+ *         description: Invalid request
+ */
+router.post('/push/subscribe', authenticate, PushController.subscribe);
+
+/**
+ * @swagger
+ * /api/v1/notifications/push/unsubscribe:
+ *   delete:
+ *     summary: Unsubscribe from push notifications
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: FCM device token to remove
+ *     responses:
+ *       200:
+ *         description: Successfully unsubscribed
+ *       404:
+ *         description: Token not found
+ */
+router.delete('/push/unsubscribe', authenticate, PushController.unsubscribe);
+
+/**
+ * @swagger
+ * /api/v1/notifications/push/tokens:
+ *   get:
+ *     summary: Get all active push tokens for the authenticated user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of active push tokens
+ */
+router.get('/push/tokens', authenticate, PushController.getTokens);
+
+/**
+ * @swagger
+ * /api/v1/notifications/push/test:
+ *   post:
+ *     summary: Send test push notification
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Test notification sent
+ */
+router.post('/push/test', authenticate, PushController.sendTest);
 
 /**
  * @swagger
