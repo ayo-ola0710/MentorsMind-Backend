@@ -11,8 +11,20 @@ import paymentsRoutes from "./payments.routes";
 import reviewsRoutes from "./reviews.routes";
 import { AdminService } from "../services/admin.service";
 import { BookingsService } from "../services/bookings.service";
+<<<<<<< HEAD
 import { VerificationService } from "../services/verification.service";
 import { logger } from "../utils/logger";
+=======
+import { notificationCleanupService } from "../services/notification-cleanup.service";
+import {
+  CURRENT_VERSION,
+  SUPPORTED_VERSIONS,
+} from "../config/api-versions.config";
+import { asyncHandler } from "../utils/asyncHandler.utils";
+import { HealthController } from "../controllers/health.controller";
+import { HealthService } from "../services/health.service";
+import { logger } from "../utils/logger.utils";
+>>>>>>> 65c470c (fix(testing): stabilize integration setup and unit test execution)
 
 const router = Router();
 
@@ -32,8 +44,13 @@ VerificationService.initialize().catch((err) => {
 });
 
 // Initialize notification cleanup service (async, don't block)
+<<<<<<< HEAD
 notificationCleanupService.initialize().catch((err: unknown) => {
   logger.error('Failed to initialize notification cleanup service:', err);
+=======
+notificationCleanupService.initialize().catch((err) => {
+  logger.error("Failed to initialize notification cleanup service:", err);
+>>>>>>> 65c470c (fix(testing): stabilize integration setup and unit test execution)
 });
 
 // Mount route modules

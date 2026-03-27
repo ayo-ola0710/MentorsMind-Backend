@@ -1,10 +1,13 @@
-import { Server as SocketIOServer } from 'socket.io';
-import { logger } from '../utils/logger.utils';
+import { Server as SocketIOServer } from "socket.io";
+import { logger } from "../utils/logger.utils";
 
 let io: SocketIOServer | null = null;
 
 // Store recent events for reconnection replay (userId -> events array)
-const eventHistory = new Map<string, Array<{ event: string; data: any; timestamp: Date }>>();
+const eventHistory = new Map<
+  string,
+  Array<{ event: string; data: any; timestamp: Date }>
+>();
 const MAX_HISTORY_EVENTS = 5;
 
 export function initializeSocketService(socketServer: SocketIOServer): void {
@@ -20,7 +23,7 @@ export const SocketService = {
    */
   emitToUser(userId: string, event: string, data: any): void {
     if (!io) {
-      logger.warn('SocketService: Socket.IO not initialized');
+      logger.warn("SocketService: Socket.IO not initialized");
       return;
     }
 
@@ -32,13 +35,13 @@ export const SocketService = {
     }
     const userEvents = eventHistory.get(userId)!;
     userEvents.push({ event, data, timestamp: new Date() });
-    
+
     // Keep only the last MAX_HISTORY_EVENTS
     if (userEvents.length > MAX_HISTORY_EVENTS) {
       userEvents.shift();
     }
 
-    logger.debug('SocketService: Emitted event to user', {
+    logger.debug("SocketService: Emitted event to user", {
       userId,
       event,
       dataKeys: Object.keys(data || {}),
@@ -52,7 +55,7 @@ export const SocketService = {
    * @param data - The event data
    */
   emitToUsers(userIds: string[], event: string, data: any): void {
-    userIds.forEach(userId => this.emitToUser(userId, event, data));
+    userIds.forEach((userId) => this.emitToUser(userId, event, data));
   },
 
   /**
@@ -62,13 +65,13 @@ export const SocketService = {
    */
   emitToAll(event: string, data: any): void {
     if (!io) {
-      logger.warn('SocketService: Socket.IO not initialized');
+      logger.warn("SocketService: Socket.IO not initialized");
       return;
     }
 
     io.emit(event, data);
 
-    logger.debug('SocketService: Emitted event to all', {
+    logger.debug("SocketService: Emitted event to all", {
       event,
       dataKeys: Object.keys(data || {}),
     });
@@ -84,7 +87,7 @@ export const SocketService = {
       return;
     }
 
-    logger.info('SocketService: Replaying missed events', {
+    logger.info("SocketService: Replaying missed events", {
       userId,
       eventCount: userEvents.length,
     });
@@ -93,4 +96,8 @@ export const SocketService = {
       this.emitToUser(userId, event, data);
     });
   },
+<<<<<<< HEAD
 };
+=======
+};
+>>>>>>> 65c470c (fix(testing): stabilize integration setup and unit test execution)

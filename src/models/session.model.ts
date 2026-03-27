@@ -1,4 +1,4 @@
-import pool from '../config/database';
+import pool from "../config/database";
 
 export interface SessionRecord {
   id: string;
@@ -8,7 +8,7 @@ export interface SessionRecord {
   description: string | null;
   scheduled_at: Date;
   duration_minutes: number;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status: "pending" | "confirmed" | "cancelled" | "completed";
   meeting_link: string | null;
   meeting_url: string | null;
   meeting_provider: string | null;
@@ -73,7 +73,10 @@ export const SessionModel = {
       CREATE INDEX IF NOT EXISTS idx_sessions_meeting_expires_at ON sessions(meeting_expires_at) WHERE meeting_expires_at IS NOT NULL;
       CREATE INDEX IF NOT EXISTS idx_sessions_needs_manual_intervention ON sessions(needs_manual_intervention) WHERE needs_manual_intervention = TRUE;
     `;
+<<<<<<< HEAD
 
+=======
+>>>>>>> 65c470c (fix(testing): stabilize integration setup and unit test execution)
     await pool.query(query);
   },
 
@@ -103,7 +106,7 @@ export const SessionModel = {
    * Find session by ID
    */
   async findById(id: string): Promise<SessionRecord | null> {
-    const query = 'SELECT * FROM sessions WHERE id = $1';
+    const query = "SELECT * FROM sessions WHERE id = $1";
     const { rows } = await pool.query<SessionRecord>(query, [id]);
     return rows[0] ?? null;
   },
@@ -141,7 +144,10 @@ export const SessionModel = {
   /**
    * Update session status
    */
-  async updateStatus(id: string, status: string): Promise<SessionRecord | null> {
+  async updateStatus(
+    id: string,
+    status: string,
+  ): Promise<SessionRecord | null> {
     const query = `
       UPDATE sessions
       SET status = $1, updated_at = NOW()
@@ -156,7 +162,10 @@ export const SessionModel = {
   /**
    * Update meeting URL and related fields
    */
-  async updateMeetingUrl(id: string, payload: UpdateMeetingUrlPayload): Promise<SessionRecord | null> {
+  async updateMeetingUrl(
+    id: string,
+    payload: UpdateMeetingUrlPayload,
+  ): Promise<SessionRecord | null> {
     const query = `
       UPDATE sessions
       SET
@@ -248,7 +257,7 @@ export const SessionModel = {
    * Delete a session
    */
   async delete(id: string): Promise<boolean> {
-    const query = 'DELETE FROM sessions WHERE id = $1 RETURNING id';
+    const query = "DELETE FROM sessions WHERE id = $1 RETURNING id";
     const { rowCount } = await pool.query(query, [id]);
     return (rowCount ?? 0) > 0;
   },
