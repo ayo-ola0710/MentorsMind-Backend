@@ -1,5 +1,5 @@
 import { NotificationsModel, NotificationInput, NotificationType, NotificationChannel, NotificationPriority } from '../models/notifications.model';
-import { NotificationPreferencesModel } from '../models/notification-preferences.model';
+import { UsersService } from './users.service';
 import { NotificationDeliveryTrackingModel, DeliveryStatus } from '../models/notification-delivery-tracking.model';
 import { NotificationAnalyticsModel } from '../models/notification-analytics.model';
 import { enqueueEmail } from '../queues/email.queue';
@@ -357,8 +357,24 @@ The MentorMinds Team
    * Get user notification preferences
    */
   async getUserPreferences(userId: string) {
-    const preferences = await NotificationPreferencesModel.getByUserId(userId);
-    return preferences || NotificationPreferencesModel.getDefaultPreferences();
+    const user = await UsersService.findById(userId);
+    return user?.notification_preferences || this.getDefaultPreferences();
+  },
+
+  /**
+   * Get default preferences
+   */
+  getDefaultPreferences(): Record<string, Record<string, boolean>> {
+    return {
+      [NotificationType.BOOKING_CONFIRMED]: { email: true, push: true, in_app: true },
+      [NotificationType.PAYMENT_PROCESSED]: { email: true, push: true, in_app: true },
+      [NotificationType.SESSION_REMINDER]: { email: true, push: true, in_app: true },
+      [NotificationType.DISPUTE_CREATED]: { email: true, push: true, in_app: true },
+      [NotificationType.SYSTEM_ALERT]: { email: true, push: true, in_app: true },
+      [NotificationType.MEETING_CONFIRMED]: { email: true, push: true, in_app: true },
+      [NotificationType.MESSAGE_RECEIVED]: { email: true, push: true, in_app: true },
+      [NotificationType.SESSION_CANCELLED]: { email: true, push: true, in_app: true },
+    };
   },
 
   /**
@@ -366,33 +382,22 @@ The MentorMinds Team
    */
   filterChannelsByPreferences(
     requestedChannels: NotificationChannel[],
-    preferences: any,
+    preferences: Record<string, Record<string, boolean>>,
     notificationType: string
   ): NotificationChannel[] {
     const allowedChannels: NotificationChannel[] = [];
+    const typePrefs = preferences[notificationType];
+
+    if (!typePrefs) {
+      // If no specific type preferences, allow all requested channels
+      return requestedChannels;
+    }
 
     for (const channel of requestedChannels) {
-      // Check global channel preferences
-      if (channel === NotificationChannel.EMAIL && !preferences.email_enabled) {
-        continue;
+      // Check channel preference for this type
+      if (typePrefs[channel] !== false) {
+        allowedChannels.push(channel);
       }
-      if (channel === NotificationChannel.IN_APP && !preferences.in_app_enabled) {
-        continue;
-      }
-      if (channel === NotificationChannel.PUSH && !preferences.push_enabled) {
-        continue;
-      }
-
-      // Check specific notification type preferences
-      const typePrefs = preferences.preferences?.[notificationType];
-      if (typePrefs) {
-        const channelKey = channel.replace('_', '');
-        if (typePrefs[channelKey] === false) {
-          continue;
-        }
-      }
-
-      allowedChannels.push(channel);
     }
 
     return allowedChannels;
