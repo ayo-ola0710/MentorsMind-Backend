@@ -1,10 +1,13 @@
 // Config must be imported first — validates env vars before anything else loads
-import config from './config';
-import app from './app';
-import { initializeModels } from './models';
-import { createSocketServer } from './config/socket';
-import { initializeSocketService } from './services/socket.service';
-import { startStellarStream, stopStellarStream } from './services/stellar-stream.service';
+import config from "./config";
+import app from "./app";
+import { initializeModels } from "./models";
+import { createSocketServer } from "./config/socket";
+import { initializeSocketService } from "./services/socket.service";
+import {
+  startStellarStream,
+  stopStellarStream,
+} from "./services/stellar-stream.service";
 import {
   emailWorker,
   paymentWorker,
@@ -14,20 +17,20 @@ import {
   notificationCleanupWorker,
   startScheduler,
   stopScheduler,
-} from './workers';
-import { initializeEmailTemplates } from './services/template-initializer.service';
-import { logger } from './utils/logger.utils';
+} from "./workers";
+import { initializeEmailTemplates } from "./services/template-initializer.service";
+import { logger } from "./utils/logger";
 
 // Initialize database tables, then seed email templates
 initializeModels()
   .then(() => initializeEmailTemplates())
   .catch((err) => {
-    console.error('Failed to initialize models:', err);
+    logger.error({ err }, "Failed to initialize models");
   });
 
 // Start background job workers and scheduler
 startScheduler().catch((err) => {
-  logger.error('Failed to start job scheduler', { error: err });
+  logger.error("Failed to start job scheduler", { error: err });
 });
 
 const { port: PORT, apiVersion: API_VERSION } = config.server;
@@ -35,7 +38,7 @@ const NODE_ENV = config.env;
 
 // Start server
 const server = app.listen(PORT, () => {
-  logger.info('Server started', {
+  logger.info("Server started", {
     port: PORT,
     env: NODE_ENV,
     apiUrl: `http://localhost:${PORT}/api/${API_VERSION}`,
@@ -54,7 +57,7 @@ startStellarStream();
 
 // Graceful shutdown
 async function shutdown(signal: string) {
-  console.log(`${signal} signal received: closing HTTP server`);
+  logger.info({ signal }, "Signal received: closing HTTP server");
   stopStellarStream();
   await Promise.all([
     emailWorker.close(),
@@ -66,12 +69,12 @@ async function shutdown(signal: string) {
     stopScheduler(),
   ]);
   server.close(() => {
-    logger.info('HTTP server closed');
+    logger.info("HTTP server closed");
     process.exit(0);
   });
 }
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 export default app;
