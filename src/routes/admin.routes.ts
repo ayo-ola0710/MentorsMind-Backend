@@ -171,6 +171,24 @@ router.put("/users/:id/unsuspend", asyncHandler(AdminController.unsuspendUser));
 
 /**
  * @swagger
+ * /admin/users/{id}/unlock:
+ *   post:
+ *     summary: Unlock a permanently or temporarily locked account
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/schemas/UUIDParam'
+ *     responses:
+ *       200:
+ *         description: Account unlocked
+ *       404:
+ *         description: User not found
+ */
+router.post("/users/:id/unlock", asyncHandler(AdminController.unlockUser));
+
+/**
+ * @swagger
  * /admin/transactions:
  *   get:
  *     summary: List all platform transactions

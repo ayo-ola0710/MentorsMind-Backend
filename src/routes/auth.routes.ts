@@ -4,6 +4,7 @@ import { AuthController } from '../controllers/auth.controller';
 import { SessionsController } from '../controllers/sessions.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { asyncHandler } from '../utils/asyncHandler.utils';
+import { loginLockoutCheck } from '../middleware/rate-limit.middleware';
 
 const router = Router();
 
@@ -18,7 +19,8 @@ const authLimiter = rateLimit({
 
 // Public routes (rate limited)
 router.post('/register', authLimiter, AuthController.register);
-router.post('/login', authLimiter, AuthController.login);
+// loginLockoutCheck runs before the handler to short-circuit locked accounts early
+router.post('/login', authLimiter, asyncHandler(loginLockoutCheck), AuthController.login);
 router.post('/refresh', authLimiter, AuthController.refresh);
 router.post('/forgot-password', authLimiter, AuthController.forgotPassword);
 router.post('/reset-password', authLimiter, AuthController.resetPassword);
