@@ -2,6 +2,14 @@
  * API v1 Route Aggregator
  *
  * All routes mounted here are served under /api/v1/
+ *
+ * ## Stability guarantee
+ * Routes registered in this file are covered by the v1 stability promise.
+ * Before modifying any route (path, method, required fields, response shape):
+ *   1. Add a `<!-- migration: <description> -->` note in your PR description.
+ *   2. If the change is breaking, introduce it in src/routes/v2/ instead.
+ *
+ * See API_VERSIONING.md for the full versioning policy.
  */
 import { Router } from "express";
 import authRoutes from "../auth.routes";
@@ -26,6 +34,12 @@ AdminService.initialize().catch((err) => {
 });
 BookingsService.initialize().catch((err) => {
   logger.error("Failed to initialize bookings tables:", err);
+});
+VerificationService.initialize().catch((err: unknown) => {
+  logger.error('Failed to initialize verification tables:', err);
+});
+notificationCleanupService.initialize().catch((err: unknown) => {
+  logger.error('Failed to initialize notification cleanup service:', err);
 });
 
 router.use("/auth", authRoutes);
