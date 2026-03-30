@@ -4,8 +4,7 @@ import swaggerUi from 'swagger-ui-express';
 import config from './config';
 import { corsMiddleware } from './middleware/cors.middleware';
 import { securityMiddleware, sanitizeInput } from './middleware/security.middleware';
-import { correlationIdMiddleware } from './middleware/correlation-id.middleware';
-import { requestIdMiddleware } from './middleware/requestId.middleware';
+import { tracingMiddleware } from './middleware/tracing.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
 import { generalLimiter } from './middleware/rate-limit.middleware';
 import { errorHandler } from './middleware/errorHandler';
@@ -25,10 +24,9 @@ const app: Application = express();
 const { apiVersion } = config.server;
 const resolvedApiVersion = apiVersion || CURRENT_VERSION;
 
-// Correlation ID must be first so all downstream middleware/handlers have access
+// Tracing middleware must be first for all downstream components
 app.use(blocklistMiddleware);
-app.use(correlationIdMiddleware);
-app.use(requestIdMiddleware);
+app.use(tracingMiddleware);
 
 // Security middleware
 app.use(securityMiddleware);
@@ -67,38 +65,16 @@ HealthService.initialize().catch((err) => {
 });
 
 // ─── GET /api/versions ────────────────────────────────────────────────────────
-/**
- * @swagger
- * /api/versions:
- *   get:
- *     summary: List all API versions
- *     description: >
- *       Returns the full catalogue of API versions — active, deprecated, and
- *       sunset — along with deprecation dates so clients can plan migrations.
- *     tags: [Versioning]
- *     responses:
- *       200:
- *         description: Version catalogue
- *         headers:
- *           X-API-Version:
- *             description: Version used to serve this response
- *             schema:
- *               type: string
- *           X-Supported-Versions:
- *             description: Comma-separated list of currently active versions
- *             schema:
- *               type: string
- */
 app.get('/api/versions', (_req, res) => {
   const versions = Object.values(API_VERSIONS).map((v) => ({
-    version: v.version,
-    active: v.active,
-    current: v.version === CURRENT_VERSION,
-    ...(v.deprecatedAt && { deprecatedAt: v.deprecatedAt }),
-    ...(v.sunsetAt && { sunsetAt: v.sunsetAt }),
-    ...(v.deprecationMessage && { deprecationMessage: v.deprecationMessage }),
+    version: (v as any).version,
+    active: (v as any).active,
+    current: (v as any).version === CURRENT_VERSION,
+    ...((v as any).deprecatedAt && { deprecatedAt: (v as any).deprecatedAt }),
+    ...((v as any).sunsetAt && { sunsetAt: (v as any).sunsetAt }),
+    ...((v as any).deprecationMessage && { deprecationMessage: (v as any).deprecationMessage }),
     links: {
-      docs: v.active ? `/api/${v.version}/docs` : null,
+      docs: (v as any).active ? `/api/${(v as any).version}/docs` : null,
     },
   }));
 

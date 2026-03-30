@@ -30,6 +30,8 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const IS_TEST = process.env.NODE_ENV === 'test';
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 
+import { traceStore } from '../middleware/tracing.middleware';
+
 /**
  * Stable identifier for this process/pod.
  */
@@ -44,6 +46,12 @@ export const logger = pino({
   redact: { paths: REDACT_PATHS, censor: '[REDACTED]' },
   base: { instanceId: INSTANCE_ID },
   timestamp: pino.stdTimeFunctions.isoTime,
+  mixin() {
+    const context = traceStore.getStore();
+    return context
+      ? { requestId: context.requestId, correlationId: context.correlationId }
+      : {};
+  },
   ...(IS_PRODUCTION
     ? {}
     : {

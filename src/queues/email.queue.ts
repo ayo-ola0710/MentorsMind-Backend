@@ -8,12 +8,16 @@ import type { EmailRequest } from '../services/email.service';
 
 export interface EmailJobData extends EmailRequest {
   jobType: 'send-email';
+  requestId?: string;
+  correlationId?: string;
 }
 
 export const emailQueue = new Queue<EmailJobData>(QUEUE_NAMES.EMAIL, {
   connection: redisConnection,
   defaultJobOptions,
 });
+
+import { traceStore } from '../middleware/tracing.middleware';
 
 /**
  * Enqueue an email send job.
@@ -24,9 +28,15 @@ export async function enqueueEmail(
   data: EmailRequest,
   priority?: number,
 ): Promise<void> {
+  const context = traceStore.getStore();
   await emailQueue.add(
     'send-email',
-    { ...data, jobType: 'send-email' },
+    { 
+      ...data, 
+      jobType: 'send-email',
+      requestId: context?.requestId,
+      correlationId: context?.correlationId,
+    },
     { priority },
   );
 }

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import * as Sentry from "@sentry/node";
 import { logger } from "../utils/logger.utils";
-import { getCorrelationId } from "../middleware/correlation-id.middleware";
+import { traceStore } from "./tracing.middleware";
 
 export interface AppError extends Error {
   statusCode?: number;
@@ -16,11 +16,15 @@ export const errorHandler = (
 ) => {
   const statusCode = err.statusCode || 500;
   const message = err.message || "Internal Server Error";
-  const requestId = res.locals?.requestId;
+  
+  const context = traceStore.getStore();
+  const requestId = context?.requestId || (req as any).requestId || res.locals?.requestId;
+  const correlationId = context?.correlationId || (req as any).correlationId;
+  
   const user = (req as any).user;
 
   logger.error(`${req.method} ${req.path}`, {
-    correlationId: getCorrelationId() ?? req.correlationId,
+    correlationId,
     requestId,
     error: message,
     statusCode,
@@ -36,6 +40,7 @@ export const errorHandler = (
       }
       scope.setContext("request", {
         requestId,
+        correlationId,
         method: req.method,
         path: req.path,
         statusCode,
@@ -47,6 +52,7 @@ export const errorHandler = (
   res.status(statusCode).json({
     status: "error",
     message,
+    requestId,
     timestamp: new Date().toISOString(),
     ...(process.env.NODE_ENV === "development" && {
       stack: err.stack,
