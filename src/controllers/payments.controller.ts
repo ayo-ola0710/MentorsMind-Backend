@@ -14,7 +14,7 @@ export const PaymentsController = {
   /** POST /api/v1/payments */
   async initiatePayment(req: AuthenticatedRequest, res: Response): Promise<void> {
     const userId = req.user!.id;
-    const { bookingId, amount, currency, description, fromAddress, toAddress } = req.body as InitiatePaymentInput;
+    const { bookingId, amount, currency, description, fromAddress, toAddress, quoteId } = req.body as InitiatePaymentInput;
 
     const payment = await PaymentsService.initiatePayment({
       userId,
@@ -24,6 +24,7 @@ export const PaymentsController = {
       description,
       fromAddress,
       toAddress,
+      quoteId,
     });
 
     // Log payment initiation

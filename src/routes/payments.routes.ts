@@ -12,6 +12,7 @@
 
 import { Router } from "express";
 import { PaymentsController } from "../controllers/payments.controller";
+import { PaymentQuoteController } from "../controllers/paymentQuote.controller";
 import { authenticate } from "../middleware/auth.middleware";
 import { idempotency } from "../middleware/idempotency.middleware";
 import { validate } from "../middleware/validation.middleware";
@@ -187,6 +188,47 @@ router.get(
  *         description: Fee estimate retrieved successfully
  */
 router.get("/fee-estimate", asyncHandler(FeeEstimateController.getFeeEstimate));
+
+/**
+ * @swagger
+ * /payments/assets:
+ *   get:
+ *     summary: List supported payment assets with current XLM exchange rates
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Supported assets (XLM, USDC, PYUSD) with live rates
+ */
+router.get("/assets", asyncHandler(PaymentQuoteController.getSupportedAssets));
+
+/**
+ * @swagger
+ * /payments/quote:
+ *   get:
+ *     summary: Get a payment quote with slippage info
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         required: true
+ *         schema: { type: string, enum: [XLM, USDC, PYUSD] }
+ *       - in: query
+ *         name: to
+ *         required: true
+ *         schema: { type: string, enum: [XLM, USDC, PYUSD] }
+ *       - in: query
+ *         name: amount
+ *         required: true
+ *         schema: { type: string, example: "50" }
+ *     responses:
+ *       200:
+ *         description: Quote with rate, receive amount, and slippage bounds
+ */
+router.get("/quote", asyncHandler(PaymentQuoteController.getQuote));
 
 /**
  * @swagger

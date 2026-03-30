@@ -11,11 +11,7 @@ const amountSchema = z
   .refine((v) => parseFloat(v) > 0, 'Amount must be greater than 0');
 
 const currencySchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(12)
-  .regex(/^[A-Z0-9]+$/, 'Currency code must be uppercase letters or digits')
+  .enum(['XLM', 'USDC', 'PYUSD'])
   .default('XLM');
 
 export const initiatePaymentSchema = z.object({
@@ -34,6 +30,7 @@ export const initiatePaymentSchema = z.object({
       .trim()
       .regex(/^G[A-Z2-7]{55}$/, 'Invalid Stellar address')
       .optional(),
+    quoteId: z.string().uuid('Invalid quote ID').optional(),
   }).strict(),
 });
 

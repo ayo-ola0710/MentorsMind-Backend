@@ -6,10 +6,15 @@
 import pool from '../config/database';
 import { BookingModel } from '../models/booking.model';
 import { stellarService } from './stellar.service';
+import { AssetExchangeService, SUPPORTED_ASSETS, MAX_SLIPPAGE_PCT } from './assetExchange.service';
 import { createError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger.utils';
 import { env } from '../config/env';
 import { SocketService } from './socket.service';
+import { WalletModel } from '../models/wallet.model';
+import { Keypair, TransactionBuilder, Operation, Asset } from '@stellar/stellar-sdk';
+import { server, networkPassphrase, getPlatformKeypair } from '../config/stellar';
+import { EncryptionUtil } from '../utils/encryption.utils';
 
 export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'refunded';
 export type PaymentType = 'payment' | 'refund' | 'platform_fee' | 'mentor_payout' | 'escrow_hold' | 'escrow_release';
@@ -22,12 +27,17 @@ export interface PaymentRecord {
   status: PaymentStatus;
   amount: string;
   currency: string;
+  asset_code: string | null;
+  asset_issuer: string | null;
   stellar_tx_hash: string | null;
   from_address: string | null;
   to_address: string | null;
   platform_fee: string;
   description: string | null;
   error_message: string | null;
+  quote_id: string | null;
+  quoted_rate: string | null;
+  path_payment: boolean;
   metadata: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
@@ -42,13 +52,15 @@ export interface InitiatePaymentData {
   description?: string;
   fromAddress?: string;
   toAddress?: string;
+  /** Optional quote ID from GET /payments/quote — enables path payment with slippage guard */
+  quoteId?: string;
 }
 
 const PLATFORM_FEE_PCT = parseInt(env.PLATFORM_FEE_PERCENTAGE, 10) / 100;
 
 export const PaymentsService = {
   async initiatePayment(data: InitiatePaymentData): Promise<PaymentRecord> {
-    const { userId, bookingId, amount, currency = 'XLM', description, fromAddress, toAddress } = data;
+    const { userId, bookingId, amount, currency = 'XLM', description, fromAddress, toAddress, quoteId } = data;
 
     // Validate booking exists and belongs to user
     const booking = await BookingModel.findById(bookingId);
@@ -58,16 +70,42 @@ export const PaymentsService = {
 
     const platformFee = (parseFloat(amount) * PLATFORM_FEE_PCT).toFixed(7);
 
+    // Resolve asset metadata
+    const assetDef = SUPPORTED_ASSETS[currency.toUpperCase()];
+    if (!assetDef) throw createError(`Unsupported currency: ${currency}`, 400);
+
+    const assetCode = assetDef.code === 'XLM' ? null : assetDef.code;
+    const assetIssuer = assetDef.issuer ?? null;
+    const assetType = assetDef.code === 'XLM' ? 'native' : 'credit_alphanum4';
+
+    // Validate quote if provided (enforces 2% rate-drift guard)
+    let quotedRate: string | null = null;
+    let isPathPayment = false;
+    if (quoteId) {
+      const quote = await AssetExchangeService.validateQuote(quoteId);
+      quotedRate = quote.rate;
+      isPathPayment = quote.pathPaymentRequired;
+    }
+
     const { rows } = await pool.query<PaymentRecord>(
       `INSERT INTO transactions
-         (user_id, booking_id, type, status, amount, currency, from_address, to_address,
-          platform_fee, description, asset_type, initiated_at, created_at, updated_at)
-       VALUES ($1, $2, 'payment', 'pending', $3, $4, $5, $6, $7, $8, 'native', NOW(), NOW(), NOW())
+         (user_id, booking_id, type, status, amount, currency,
+          asset_code, asset_issuer, asset_type,
+          from_address, to_address, platform_fee, description,
+          quote_id, quoted_rate, path_payment,
+          initiated_at, created_at, updated_at)
+       VALUES ($1, $2, 'payment', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+               NOW(), NOW(), NOW())
        RETURNING *`,
-      [userId, bookingId, amount, currency, fromAddress ?? null, toAddress ?? null, platformFee, description ?? null],
+      [
+        userId, bookingId, amount, currency.toUpperCase(),
+        assetCode, assetIssuer, assetType,
+        fromAddress ?? null, toAddress ?? null, platformFee, description ?? null,
+        quoteId ?? null, quotedRate, isPathPayment,
+      ],
     );
 
-    logger.info('Payment initiated', { paymentId: rows[0].id, userId, bookingId });
+    logger.info('Payment initiated', { paymentId: rows[0].id, userId, bookingId, currency, isPathPayment });
     return rows[0];
   },
 

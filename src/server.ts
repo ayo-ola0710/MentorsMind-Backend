@@ -86,6 +86,11 @@ stellarMonitorJob.start().catch((err) => {
   logger.error("Failed to start Horizon SSE monitor", { error: err });
 });
 
+// Start background exchange rate refresh (60s interval, cached in Redis)
+import('./services/assetExchange.service').then(({ AssetExchangeService }) => {
+  AssetExchangeService.startRateRefresh();
+}).catch((err) => logger.error('Failed to start asset exchange rate refresh', { error: err }));
+
 // Graceful shutdown
 async function shutdown(signal: string) {
   logger.info({ signal }, "Signal received: closing HTTP server");
