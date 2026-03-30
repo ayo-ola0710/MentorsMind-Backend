@@ -286,17 +286,6 @@ export const BookingsService = {
     });
 
     return updated;
-
-    const room = await videoSessionService.createRoom(booking);
-
-    const mentorToken = await videoSessionService.generateToken(
-      room.name,
-      "mentor"
-    );
-
-    const learnerToken = await videoSessionService.generateToken(
-      room.name,
-      "learner"
   },
 
   async completeBooking(bookingId: string, userId: string): Promise<BookingRecord> {
@@ -341,6 +330,11 @@ export const BookingsService = {
     // Invalidate session list cache for both users
     await CacheService.del(CacheKeys.sessionList(booking.mentee_id));
     await CacheService.del(CacheKeys.sessionList(booking.mentor_id));
+    
+    // Invalidate learner progress cache for the mentee
+    const { LearnerService } = await import('./learners.service');
+    await LearnerService.invalidateCache(booking.mentee_id);
+
     logger.debug('Booking cache invalidated on completion', { bookingId });
     // Emit session:updated event to both mentor and mentee
     SocketService.emitToUser(booking.mentor_id, 'session:updated', {

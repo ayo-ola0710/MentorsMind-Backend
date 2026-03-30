@@ -2,33 +2,16 @@ import * as StellarSdk from "@stellar/stellar-sdk";
 import { env } from "./env";
 import config from "./index";
 import { logger } from "../utils/logger";
+import { traceStore } from '../middleware/tracing.middleware';
 
 /**
  * Stellar Network Configuration
- *
- * Network selection:
- *   Set `STELLAR_NETWORK=testnet` or `STELLAR_NETWORK=mainnet` in `.env`.
- *   The Horizon server URL defaults to the public SDF endpoint for the chosen
- *   network but can be overridden with `STELLAR_HORIZON_URL`.
- *
- * Failover:
- *   `horizonUrls.primary` — used for all calls first.
- *   `horizonUrls.backup`  — tried when primary is unreachable (after retries).
- *   To use a custom backup, update the `HORIZON_URLS` map below.
- *
- * Platform wallet:
- *   `PLATFORM_SECRET_KEY` is read on-demand via `getPlatformKeypair()`.
- *   It is never stored in the exported config object.
  */
-
-// ---------------------------------------------------------------------------
-// Network constants
-// ---------------------------------------------------------------------------
 
 const HORIZON_URLS: Record<string, { primary: string; backup: string }> = {
   testnet: {
     primary: "https://horizon-testnet.stellar.org",
-    backup: "https://horizon-testnet.stellar.org", // only one public testnet
+    backup: "https://horizon-testnet.stellar.org",
   },
   mainnet: {
     primary: "https://horizon.stellar.org",
@@ -43,8 +26,24 @@ export const horizonUrls = {
   backup: HORIZON_URLS[networkKey].backup,
 };
 
-export const server = new StellarSdk.Horizon.Server(horizonUrls.primary);
-export const backupServer = new StellarSdk.Horizon.Server(horizonUrls.backup);
+// ─── Custom Fetch with Tracing ────────────────────────────────────────────────
+/**
+ * A fetch wrapper that injects tracing headers from the current AsyncLocalStorage context.
+ */
+const tracingFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const context = traceStore.getStore();
+  const headers = new Headers(init?.headers);
+  
+  if (context) {
+    headers.set('X-Request-ID', context.requestId);
+    headers.set('X-Correlation-ID', context.correlationId);
+  }
+
+  return fetch(input, { ...init, headers });
+};
+
+export const server = new StellarSdk.Horizon.Server(horizonUrls.primary, { fetch: tracingFetch as any });
+export const backupServer = new StellarSdk.Horizon.Server(horizonUrls.backup, { fetch: tracingFetch as any });
 
 export const networkPassphrase =
   config.stellar.network === "testnet"
@@ -55,7 +54,6 @@ export const networkPassphrase =
 // Platform keypair helper
 // ---------------------------------------------------------------------------
 
-// Secret key is read directly from env — never stored in the config object
 export const getPlatformKeypair = (): StellarSdk.Keypair | null => {
   const secretKey = env.STELLAR_FUNDING_SECRET;
   if (!secretKey) {

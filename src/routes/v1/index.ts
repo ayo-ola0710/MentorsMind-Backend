@@ -43,8 +43,13 @@ notificationCleanupService.initialize().catch((err: unknown) => {
   logger.error("Failed to initialize notification cleanup service:", err);
 });
 
+import goalRoutes from "../goal.routes";
+import learnerRoutes from "../learner.routes";
+
 router.use("/auth", authRoutes);
 router.use("/users", usersRoutes);
+router.use("/goals", goalRoutes);
+router.use("/learners", learnerRoutes);
 router.use("/", exportRoutes);
 router.use("/consent", consentRoutes);
 router.use("/admin", adminRoutes);

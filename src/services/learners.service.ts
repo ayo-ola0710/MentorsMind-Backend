@@ -1,28 +1,138 @@
-import db from '../config/db'; // Assuming a db config exists
+import db from '../config/db';
+import { CacheService } from './cache.service';
+import { logger } from '../utils/logger';
+
+export interface ProgressSummary {
+  total_sessions: number;
+  total_hours: number;
+  completed_goals: number;
+  current_streak: number;
+  longest_streak: number;
+}
+
+export interface TimelineEntry {
+  month: string;
+  count: number;
+}
 
 export class LearnerService {
-  static async getProgress(learnerId: number) {
+  private static CACHE_TTL = 300; // 5 minutes
+
+  static async getProgressSummary(learnerId: string): Promise<ProgressSummary> {
+    const cacheKey = `learner:progress:${learnerId}`;
+    
+    return await CacheService.wrap(cacheKey, this.CACHE_TTL, async () => {
+      // 1. Basic stats from bookings
+      const statsResult = await db.query(
+        `SELECT 
+          COUNT(*) as total_sessions,
+          SUM(EXTRACT(EPOCH FROM (actual_end - actual_start)) / 3600) as total_hours
+         FROM bookings 
+         WHERE mentee_id = $1 AND status = 'completed'`,
+        [learnerId]
+      );
+
+      // 2. Completed goals
+      const goalsResult = await db.query(
+        `SELECT COUNT(*) as completed_goals FROM learner_goals 
+         WHERE learner_id = $1 AND status = 'completed'`,
+        [learnerId]
+      );
+
+      // 3. Streak calculation
+      const sessionsResult = await db.query(
+        `SELECT DISTINCT DATE(scheduled_start AT TIME ZONE 'UTC') as session_date 
+         FROM bookings 
+         WHERE mentee_id = $1 AND status = 'completed'
+         ORDER BY session_date DESC`,
+        [learnerId]
+      );
+
+      const dates = sessionsResult.rows.map(r => new Date(r.session_date));
+      const { current, longest } = this.calculateStreaks(dates);
+
+      return {
+        total_sessions: parseInt(statsResult.rows[0].total_sessions || '0', 10),
+        total_hours: parseFloat(statsResult.rows[0].total_hours || '0'),
+        completed_goals: parseInt(goalsResult.rows[0].completed_goals || '0', 10),
+        current_streak: current,
+        longest_streak: longest
+      };
+    });
+  }
+
+  static async getTimeline(learnerId: string): Promise<TimelineEntry[]> {
     const result = await db.query(
-      'SELECT total_sessions, total_hours_spent, skills_covered FROM learner_progress WHERE learner_id = $1',
+      `SELECT 
+        TO_CHAR(completed_at, 'YYYY-MM') as month,
+        COUNT(*) as count
+       FROM learner_goals
+       WHERE learner_id = $1 AND status = 'completed'
+         AND completed_at >= NOW() - INTERVAL '12 months'
+       GROUP BY month
+       ORDER BY month ASC`,
       [learnerId]
     );
-    return result.rows[0] || { total_sessions: 0, total_hours_spent: 0, skills_covered: [] };
+    return result.rows;
   }
 
-  static async updateGoals(learnerId: number, goalData: any) {
-    const { goal_title, target_date } = goalData;
-    return await db.query(
-      'INSERT INTO learner_goals (learner_id, goal_title, target_date) VALUES ($1, $2, $3) RETURNING *',
-      [learnerId, goal_title, target_date]
-    );
+  static async invalidateCache(learnerId: string): Promise<void> {
+    await CacheService.del(`learner:progress:${learnerId}`);
   }
 
-  static async getStats(learnerId: number) {
-    // Logic to calculate total spend and avg rating from sessions table
-    const stats = await db.query(
-      'SELECT COUNT(*) as total_sessions, AVG(rating_given) as avg_rating FROM sessions WHERE learner_id = $1',
-      [learnerId]
-    );
-    return stats.rows[0];
+  private static calculateStreaks(dates: Date[]): { current: number; longest: number } {
+    if (dates.length === 0) return { current: 0, longest: 0 };
+
+    let current = 0;
+    let longest = 0;
+    let tempStreak = 1;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Check if the latest session was today or yesterday to start current streak
+    const latestSession = new Date(dates[0]);
+    latestSession.setHours(0, 0, 0, 0);
+
+    if (latestSession.getTime() === today.getTime() || latestSession.getTime() === yesterday.getTime()) {
+      current = 1;
+      for (let i = 0; i < dates.length - 1; i++) {
+        const d1 = new Date(dates[i]);
+        d1.setHours(0, 0, 0, 0);
+        const d2 = new Date(dates[i + 1]);
+        d2.setHours(0, 0, 0, 0);
+
+        const diff = (d1.getTime() - d2.getTime()) / (1000 * 3600 * 24);
+        if (diff === 1) {
+          current++;
+        } else {
+          break;
+        }
+      }
+    }
+
+    // Calculate longest streak
+    tempStreak = 1;
+    longest = 1;
+    for (let i = 0; i < dates.length - 1; i++) {
+      const d1 = new Date(dates[i]);
+      d1.setHours(0, 0, 0, 0);
+      const d2 = new Date(dates[i + 1]);
+      d2.setHours(0, 0, 0, 0);
+
+      const diff = (d1.getTime() - d2.getTime()) / (1000 * 3600 * 24);
+      if (diff === 1) {
+        tempStreak++;
+      } else {
+        longest = Math.max(longest, tempStreak);
+        tempStreak = 1;
+      }
+    }
+    longest = Math.max(longest, tempStreak);
+
+    return { current, longest };
   }
 }

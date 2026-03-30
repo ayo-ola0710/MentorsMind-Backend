@@ -10,25 +10,35 @@ import type { EmailJobData } from "../queues/email.queue";
 
 const emailService = new EmailService();
 
+import { traceStore } from "../middleware/tracing.middleware";
+
 async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
-  const { jobType: _jobType, ...emailRequest } = job.data;
+  const { jobType: _jobType, requestId, correlationId, ...emailRequest } = job.data;
 
-  logger.info("Email job started", {
-    jobId: job.id,
-    to: emailRequest.to,
-    subject: emailRequest.subject,
-    attempt: job.attemptsMade + 1,
-  });
+  const context = {
+    requestId: requestId || job.id || 'job-unknown',
+    correlationId: correlationId || job.id || 'job-unknown',
+    startTime: Date.now(),
+  };
 
-  const result = await emailService.sendEmail(emailRequest);
+  return traceStore.run(context, async () => {
+    logger.info("Email job started", {
+      jobId: job.id,
+      to: emailRequest.to,
+      subject: emailRequest.subject,
+      attempt: job.attemptsMade + 1,
+    });
 
-  if (!result.success) {
-    throw new Error(result.error || "Email send failed");
-  }
+    const result = await emailService.sendEmail(emailRequest);
 
-  logger.info("Email job completed", {
-    jobId: job.id,
-    messageId: result.messageId,
+    if (!result.success) {
+      throw new Error(result.error || "Email send failed");
+    }
+
+    logger.info("Email job completed", {
+      jobId: job.id,
+      messageId: result.messageId,
+    });
   });
 }
 
