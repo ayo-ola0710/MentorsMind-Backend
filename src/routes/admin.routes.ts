@@ -3,20 +3,27 @@ import { AdminController } from "../controllers/admin.controller";
 import { AnalyticsController } from "../controllers/analytics.controller";
 import { ModerationController } from "../controllers/moderation.controller";
 import { VerificationController } from "../controllers/verification.controller";
+import { RevenueReportController } from "../controllers/revenueReport.controller";
 import { authenticate } from "../middleware/auth.middleware";
 import { requireAdmin } from "../middleware/admin-auth.middleware";
 import { validate } from "../middleware/validation.middleware";
 import { asyncHandler } from "../utils/asyncHandler.utils";
+import { logger } from "../utils/logger.utils";
 import {
   rejectVerificationSchema,
   requestMoreInfoSchema,
   listVerificationsSchema,
 } from "../validators/schemas/verification.schemas";
+import { ConsentController } from "../controllers/consent.controller";
+import { refreshAnalyticsJob } from "../jobs/refreshAnalytics.job";
 
 const router = Router();
 
 router.use(authenticate);
 router.use(requireAdmin);
+refreshAnalyticsJob.initialize().catch((error: unknown) => {
+  logger.error("Failed to initialize hourly analytics refresh job", { error });
+});
 
 /**
  * @swagger
@@ -167,6 +174,44 @@ router.put("/users/:id/suspend", asyncHandler(AdminController.suspendUser));
  *         description: User not found
  */
 router.put("/users/:id/unsuspend", asyncHandler(AdminController.unsuspendUser));
+
+/**
+ * @swagger
+ * /admin/users/{id}/unlock:
+ *   post:
+ *     summary: Unlock a permanently or temporarily locked account
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/schemas/UUIDParam'
+ *     responses:
+ *       200:
+ *         description: Account unlocked
+ *       404:
+ *         description: User not found
+ */
+router.post("/users/:id/unlock", asyncHandler(AdminController.unlockUser));
+
+/**
+ * @swagger
+ * /admin/auth/rotate-keys:
+ *   post:
+ *     summary: Rotate JWT signing key pair (zero-downtime)
+ *     description: >
+ *       Generates a new RSA-256 key pair. The current key is demoted to
+ *       "previous" and remains valid for 24 hours so existing tokens keep
+ *       working. After 24 hours the previous key is rejected.
+ *     tags: [Admin, Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Keys rotated — returns new and previous kid values
+ *       403:
+ *         description: Admin role required
+ */
+router.post("/auth/rotate-keys", asyncHandler(JwksController.rotateKeys));
 
 /**
  * @swagger
@@ -509,7 +554,10 @@ router.get("/audit-log/export", asyncHandler(AdminController.exportAuditLogs));
  *       200:
  *         description: Chain integrity verification result
  */
-router.get("/audit-log/verify", asyncHandler(AdminController.verifyAuditLogIntegrity));
+router.get(
+  "/audit-log/verify",
+  asyncHandler(AdminController.verifyAuditLogIntegrity),
+);
 
 /**
  * @swagger
@@ -660,6 +708,115 @@ router.get(
 router.post(
   "/analytics/refresh",
   asyncHandler(AnalyticsController.refreshViews),
+);
+
+/**
+ * @swagger
+ * /admin/reports/revenue:
+ *   get:
+ *     summary: Get platform revenue summary for a period
+ *     tags: [Admin, Reporting]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: period
+ *         in: query
+ *         schema: { type: string, enum: [7d, 30d, 90d, 1y], default: 30d }
+ *     responses:
+ *       200:
+ *         description: Revenue summary with period comparison
+ */
+router.get(
+  "/reports/revenue",
+  asyncHandler(RevenueReportController.getRevenueSummary),
+);
+
+/**
+ * @swagger
+ * /admin/reports/revenue/daily:
+ *   get:
+ *     summary: Get daily revenue time series
+ *     tags: [Admin, Reporting]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: from
+ *         in: query
+ *         required: true
+ *         schema: { type: string, format: date }
+ *       - name: to
+ *         in: query
+ *         required: true
+ *         schema: { type: string, format: date }
+ *     responses:
+ *       200:
+ *         description: Daily revenue report
+ */
+router.get(
+  "/reports/revenue/daily",
+  asyncHandler(RevenueReportController.getDailyRevenue),
+);
+
+/**
+ * @swagger
+ * /admin/reports/transactions:
+ *   get:
+ *     summary: Get filterable transaction report
+ *     tags: [Admin, Reporting]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: status
+ *         in: query
+ *         schema: { type: string }
+ *       - name: from
+ *         in: query
+ *         required: true
+ *         schema: { type: string, format: date }
+ *       - name: to
+ *         in: query
+ *         required: true
+ *         schema: { type: string, format: date }
+ *     responses:
+ *       200:
+ *         description: Transaction report list
+ */
+router.get(
+  "/reports/transactions",
+  asyncHandler(RevenueReportController.getTransactions),
+);
+
+/**
+ * @swagger
+ * /admin/reports/export:
+ *   get:
+ *     summary: Export report data as CSV
+ *     tags: [Admin, Reporting]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: type
+ *         in: query
+ *         schema: { type: string, enum: [revenue], default: revenue }
+ *       - name: format
+ *         in: query
+ *         schema: { type: string, enum: [csv], default: csv }
+ *       - name: from
+ *         in: query
+ *         schema: { type: string, format: date }
+ *       - name: to
+ *         in: query
+ *         schema: { type: string, format: date }
+ *       - name: status
+ *         in: query
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: CSV export generated
+ */
+router.get(
+  "/reports/export",
+  asyncHandler(RevenueReportController.exportReport),
 );
 
 // ── Moderation Routes ────────────────────────────────────────────────────────
@@ -900,6 +1057,29 @@ router.put(
   "/verifications/:id/request-more",
   validate(requestMoreInfoSchema),
   asyncHandler(VerificationController.requestMoreInfo),
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/consent/stats:
+ *   get:
+ *     summary: Aggregate consent rates by type (Admin only)
+ *     tags: [Consent, Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Consent statistics aggregated successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ */
+router.get(
+  "/consent/stats",
+  authenticate,
+  requireAdmin,
+  asyncHandler(ConsentController.getConsentStats),
 );
 
 export default router;

@@ -33,19 +33,31 @@ import {
   escrowReleaseWorker,
   reportWorker,
   sessionReminderWorker,
+  stellarTxWorker,
+  escrowCheckWorker,
+  notificationsWorker,
   notificationCleanupWorker,
   startScheduler,
   stopScheduler,
 } from "./workers";
 import { initializeEmailTemplates } from "./services/template-initializer.service";
+import { logger } from "./utils/logger";
 import { logger } from "./utils/logger.utils";
 
 // Initialize database tables, then seed email templates
 initializeModels()
   .then(() => initializeEmailTemplates())
   .catch((err) => {
+    logger.error({ err }, "Failed to initialize models");
     console.error("Failed to initialize models:", err);
   });
+
+// Initialize JWKS key store (generates RSA key pair if none exists)
+import("./services/jwks.service").then(({ JwksService }) =>
+  JwksService.initialize().catch((err) =>
+    logger.error("Failed to initialize JWKS key store", { error: err }),
+  ),
+);
 
 // Start background job workers and scheduler
 startScheduler().catch((err) => {
@@ -76,7 +88,7 @@ startStellarStream();
 
 // Graceful shutdown
 async function shutdown(signal: string) {
-  console.log(`${signal} signal received: closing HTTP server`);
+  logger.info({ signal }, "Signal received: closing HTTP server");
   stopStellarStream();
   await Promise.all([
     emailWorker.close(),
@@ -84,6 +96,9 @@ async function shutdown(signal: string) {
     escrowReleaseWorker.close(),
     reportWorker.close(),
     sessionReminderWorker.close(),
+    stellarTxWorker.close(),
+    escrowCheckWorker.close(),
+    notificationsWorker.close(),
     notificationCleanupWorker.close(),
     stopScheduler(),
   ]);
