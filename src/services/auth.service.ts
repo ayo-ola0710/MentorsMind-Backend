@@ -1,57 +1,64 @@
 // @ts-nocheck
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
-import pool from '../config/database';
-import { RegisterInput, LoginInput, ResetPasswordInput } from '../validators/auth.validator';
-import { UserRecord } from './users.service';
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import pool from "../config/database";
+import {
+  RegisterInput,
+  LoginInput,
+  ResetPasswordInput,
+} from "../validators/auth.validator";
+import { UserRecord } from "./users.service";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret';
-const ACCESS_TOKEN_EXPIRED_IN = '15m';
-const REFRESH_TOKEN_EXPIRED_IN = '7d';
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
+const JWT_REFRESH_SECRET =
+  process.env.JWT_REFRESH_SECRET || "fallback_refresh_secret";
+const ACCESS_TOKEN_EXPIRED_IN = "15m";
+const REFRESH_TOKEN_EXPIRED_IN = "7d";
 
 export interface AuthTokens {
-    accessToken: string;
-    refreshToken: string;
+  accessToken: string;
+  refreshToken: string;
 }
 
 export interface AuthUserRecord extends UserRecord {
-    password_hash: string;
-    refresh_token: string | null;
-    reset_token: string | null;
-    reset_token_expires: Date | null;
+  password_hash: string;
+  refresh_token: string | null;
+  reset_token: string | null;
+  reset_token_expires: Date | null;
 }
 
 export const AuthService = {
-    /**
-     * Register a new user
-     */
-    async register(input: RegisterInput): Promise<AuthTokens & { userId: string }> {
-        const { email, password, firstName, lastName, role } = input;
+  /**
+   * Register a new user
+   */
+  async register(
+    input: RegisterInput,
+  ): Promise<AuthTokens & { userId: string }> {
+    const { email, password, firstName, lastName, role } = input;
 
-        // Check if email already exists
-        const checkQuery = `SELECT id FROM users WHERE email = $1`;
-        const checkResult = await pool.query(checkQuery, [email]);
-        if (checkResult.rows.length > 0) {
-            throw new Error('Email is already registered.');
-        }
+    // Check if email already exists
+    const checkQuery = `SELECT id FROM users WHERE email = $1`;
+    const checkResult = await pool.query(checkQuery, [email]);
+    if (checkResult.rows.length > 0) {
+      throw new Error("Email is already registered.");
+    }
 
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
 
-        const defaultPreferences = {
-            booking_confirmed: { email: true, push: true, in_app: true },
-            payment_processed: { email: true, push: true, in_app: true },
-            session_reminder: { email: true, push: true, in_app: true },
-            dispute_created: { email: true, push: true, in_app: true },
-            system_alert: { email: true, push: true, in_app: true },
-            meeting_confirmed: { email: true, push: true, in_app: true },
-            message_received: { email: true, push: true, in_app: true },
-            session_cancelled: { email: true, push: true, in_app: true },
-        };
+    const defaultPreferences = {
+      booking_confirmed: { email: true, push: true, in_app: true },
+      payment_processed: { email: true, push: true, in_app: true },
+      session_reminder: { email: true, push: true, in_app: true },
+      dispute_created: { email: true, push: true, in_app: true },
+      system_alert: { email: true, push: true, in_app: true },
+      meeting_confirmed: { email: true, push: true, in_app: true },
+      message_received: { email: true, push: true, in_app: true },
+      session_cancelled: { email: true, push: true, in_app: true },
+    };
 
-        const insertQuery = `
+    const insertQuery = `
       INSERT INTO users (email, password_hash, first_name, last_name, role, notification_preferences)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id, role
@@ -234,4 +241,37 @@ export const AuthService = {
 
         return { accessToken, refreshToken };
     }
+
+    const userId = rows[0].id;
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(input.newPassword, salt);
+
+    await pool.query(
+      `UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2`,
+      [passwordHash, userId],
+    );
+
+    return userId;
+  },
+
+  /**
+   * Generate access and refresh tokens, and save refresh token to DB
+   */
+  async generateTokens(userId: string, role: string): Promise<AuthTokens> {
+    const accessToken = jwt.sign({ sub: userId, role }, JWT_SECRET, {
+      expiresIn: ACCESS_TOKEN_EXPIRED_IN,
+    });
+
+    const refreshToken = jwt.sign({ sub: userId, role }, JWT_REFRESH_SECRET, {
+      expiresIn: REFRESH_TOKEN_EXPIRED_IN,
+    });
+
+    // Save refresh token to DB (basic token rotation implementation)
+    await pool.query(`UPDATE users SET refresh_token = $1 WHERE id = $2`, [
+      refreshToken,
+      userId,
+    ]);
+
+    return { accessToken, refreshToken };
+  },
 };
