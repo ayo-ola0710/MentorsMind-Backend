@@ -1,11 +1,3 @@
-import { NotificationsModel, NotificationInput, NotificationType, NotificationChannel, NotificationPriority } from '../models/notifications.model';
-import { UsersService } from './users.service';
-import { NotificationDeliveryTrackingModel, DeliveryStatus } from '../models/notification-delivery-tracking.model';
-import { NotificationAnalyticsModel } from '../models/notification-analytics.model';
-import { enqueueEmail } from '../queues/email.queue';
-import { SocketService } from './socket.service';
-import { PushService } from './push.service';
-import { logger } from '../utils/logger';
 import {
   NotificationsModel,
   NotificationInput,
@@ -13,14 +5,13 @@ import {
   NotificationChannel,
   NotificationPriority,
 } from "../models/notifications.model";
-import { NotificationPreferencesModel } from "../models/notification-preferences.model";
+import { UsersService } from "./users.service";
 import {
   NotificationDeliveryTrackingModel,
   DeliveryStatus,
 } from "../models/notification-delivery-tracking.model";
 import { NotificationAnalyticsModel } from "../models/notification-analytics.model";
 import { enqueueEmail } from "../queues/email.queue";
-import { logger } from "../utils/logger";
 import { SocketService } from "./socket.service";
 import { PushService } from "./push.service";
 import { logger } from "../utils/logger";
@@ -410,14 +401,46 @@ The MentorMinds Team
    */
   getDefaultPreferences(): Record<string, Record<string, boolean>> {
     return {
-      [NotificationType.BOOKING_CONFIRMED]: { email: true, push: true, in_app: true },
-      [NotificationType.PAYMENT_PROCESSED]: { email: true, push: true, in_app: true },
-      [NotificationType.SESSION_REMINDER]: { email: true, push: true, in_app: true },
-      [NotificationType.DISPUTE_CREATED]: { email: true, push: true, in_app: true },
-      [NotificationType.SYSTEM_ALERT]: { email: true, push: true, in_app: true },
-      [NotificationType.MEETING_CONFIRMED]: { email: true, push: true, in_app: true },
-      [NotificationType.MESSAGE_RECEIVED]: { email: true, push: true, in_app: true },
-      [NotificationType.SESSION_CANCELLED]: { email: true, push: true, in_app: true },
+      [NotificationType.BOOKING_CONFIRMED]: {
+        email: true,
+        push: true,
+        in_app: true,
+      },
+      [NotificationType.PAYMENT_PROCESSED]: {
+        email: true,
+        push: true,
+        in_app: true,
+      },
+      [NotificationType.SESSION_REMINDER]: {
+        email: true,
+        push: true,
+        in_app: true,
+      },
+      [NotificationType.DISPUTE_CREATED]: {
+        email: true,
+        push: true,
+        in_app: true,
+      },
+      [NotificationType.SYSTEM_ALERT]: {
+        email: true,
+        push: true,
+        in_app: true,
+      },
+      [NotificationType.MEETING_CONFIRMED]: {
+        email: true,
+        push: true,
+        in_app: true,
+      },
+      [NotificationType.MESSAGE_RECEIVED]: {
+        email: true,
+        push: true,
+        in_app: true,
+      },
+      [NotificationType.SESSION_CANCELLED]: {
+        email: true,
+        push: true,
+        in_app: true,
+      },
     };
   },
 
@@ -427,8 +450,6 @@ The MentorMinds Team
   filterChannelsByPreferences(
     requestedChannels: NotificationChannel[],
     preferences: Record<string, Record<string, boolean>>,
-    notificationType: string
-    preferences: any,
     notificationType: string,
   ): NotificationChannel[] {
     const allowedChannels: NotificationChannel[] = [];
@@ -440,31 +461,9 @@ The MentorMinds Team
     }
 
     for (const channel of requestedChannels) {
-      // Check channel preference for this type
+      // Check channel preference for this notification type
       if (typePrefs[channel] !== false) {
         allowedChannels.push(channel);
-    for (const channel of requestedChannels) {
-      // Check global channel preferences
-      if (channel === NotificationChannel.EMAIL && !preferences.email_enabled) {
-        continue;
-      }
-      if (
-        channel === NotificationChannel.IN_APP &&
-        !preferences.in_app_enabled
-      ) {
-        continue;
-      }
-      if (channel === NotificationChannel.PUSH && !preferences.push_enabled) {
-        continue;
-      }
-
-      // Check specific notification type preferences
-      const typePrefs = preferences.preferences?.[notificationType];
-      if (typePrefs) {
-        const channelKey = channel.replace("_", "");
-        if (typePrefs[channelKey] === false) {
-          continue;
-        }
       }
     }
 
