@@ -1,76 +1,119 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import { errorHandler } from './middleware/errorHandler';
-import { notFoundHandler } from './middleware/notFoundHandler';
-import authRoutes from './routes/auth.routes';
-import { testConnection } from './config/database';
-import { testStellarConnection } from './config/stellar';
+// Sentry must be initialised before any other imports so it can instrument them
+import * as Sentry from "@sentry/node";
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
-// Load environment variables
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-// Middleware
-app.use(helmet()); // Security headers
-app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || '*',
-  credentials: true
-}));
-app.use(morgan('dev')); // Logging
-app.use(express.json()); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
-
-// Health check endpoint
-app.get('/health', (_req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'MentorMinds Backend API is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV || "development",
+  enabled: !!process.env.SENTRY_DSN,
+  integrations: [nodeProfilingIntegration()],
+  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.2 : 1.0,
+  profilesSampleRate: 1.0,
+  // Only capture server errors — ignore expected client/auth errors
+  beforeSend(event) {
+    const status = event.contexts?.response?.status_code as number | undefined;
+    if (status && status < 500) return null;
+    return event;
+  },
 });
 
-// Mount routes
-app.use('/api/v1/auth', authRoutes);
+// Config must be imported first — validates env vars before anything else loads
+import config from "./config";
+import app from "./app";
+import { initializeModels } from "./models";
+import { createSocketServer } from "./config/socket";
+import { initializeSocketService } from "./services/socket.service";
+import {
+  stellarMonitorJob,
+} from "./jobs/stellarMonitor.job";
+import {
+  emailWorker,
+  paymentWorker,
+  escrowReleaseWorker,
+  reportWorker,
+  sessionReminderWorker,
+  stellarTxWorker,
+  escrowCheckWorker,
+  notificationsWorker,
+  notificationCleanupWorker,
+  startScheduler,
+  stopScheduler,
+} from "./workers";
+import { initializeEmailTemplates } from "./services/template-initializer.service";
+import { logger } from "./utils/logger.utils";
 
-// API Routes
-app.get('/api/v1', (_req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Welcome to MentorMinds Stellar API',
-    version: '1.0.0',
-    endpoints: {
-      health: '/health',
-      auth: '/api/v1/auth',
-      users: '/api/v1/users',
-      mentors: '/api/v1/mentors',
-      bookings: '/api/v1/bookings',
-      payments: '/api/v1/payments',
-      wallets: '/api/v1/wallets'
-    }
+// Initialize database tables, then seed email templates
+initializeModels()
+  .then(() => initializeEmailTemplates())
+  .catch((err) => {
+    logger.error({ err }, "Failed to initialize models");
+    console.error("Failed to initialize models:", err);
   });
+
+// Initialize JWKS key store (generates RSA key pair if none exists)
+import("./services/jwks.service").then(({ JwksService }) =>
+  JwksService.initialize().catch((err) =>
+    logger.error("Failed to initialize JWKS key store", { error: err }),
+  ),
+);
+
+// Start background job workers and scheduler
+startScheduler().catch((err) => {
+  logger.error("Failed to start job scheduler", { error: err });
 });
 
-// 404 handler
-app.use(notFoundHandler);
-
-// Error handler (must be last)
-app.use(errorHandler);
+const { port: PORT, apiVersion: API_VERSION } = config.server;
+const NODE_ENV = config.env;
 
 // Start server
-app.listen(PORT, async () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 API URL: http://localhost:${PORT}/api/v1`);
-  console.log(`💚 Health check: http://localhost:${PORT}/health`);
-  // Verify external connections on boot
-  await testConnection();
-  await testStellarConnection();
+const server = app.listen(PORT, () => {
+  logger.info("Server started", {
+    port: PORT,
+    env: NODE_ENV,
+    apiUrl: `http://localhost:${PORT}/api/${API_VERSION}`,
+    healthCheck: `http://localhost:${PORT}/health`,
+    apiDocs: `http://localhost:${PORT}/api/${API_VERSION}/docs`,
+    webSocket: `ws://localhost:${PORT}/ws`,
+  });
 });
+
+// Attach Socket.IO server to the same HTTP server
+const io = createSocketServer(server);
+initializeSocketService(io);
+
+// Subscribe to Stellar Horizon SSE for real-time payment confirmations
+stellarMonitorJob.start().catch((err) => {
+  logger.error("Failed to start Horizon SSE monitor", { error: err });
+});
+
+// Start background exchange rate refresh (60s interval, cached in Redis)
+import('./services/assetExchange.service').then(({ AssetExchangeService }) => {
+  AssetExchangeService.startRateRefresh();
+}).catch((err) => logger.error('Failed to start asset exchange rate refresh', { error: err }));
+
+// Graceful shutdown
+async function shutdown(signal: string) {
+  logger.info({ signal }, "Signal received: closing HTTP server");
+  stellarMonitorJob.stop();
+  await Promise.all([
+    emailWorker.close(),
+    paymentWorker.close(),
+    escrowReleaseWorker.close(),
+    reportWorker.close(),
+    sessionReminderWorker.close(),
+    stellarTxWorker.close(),
+    escrowCheckWorker.close(),
+    notificationsWorker.close(),
+    notificationCleanupWorker.close(),
+    stopScheduler(),
+  ]);
+  server.close(() => {
+    logger.info("HTTP server closed");
+    process.exit(0);
+  });
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 export default app;

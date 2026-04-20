@@ -13,10 +13,34 @@ Backend API server for the MentorMinds Stellar platform, built with Node.js, Exp
 - **Security** with Helmet and CORS
 - **Logging** with Morgan
 - **Environment Configuration** with dotenv
+- **Interactive API Docs** with Swagger UI (OpenAPI 3.0)
+- **Video Meeting Integration** with multiple provider support (Daily.co, Whereby, Zoom, Jitsi)
+- **Automated Meeting Room Generation** on booking confirmation
+- **Email Notifications** for meeting links
+- **Timezone Handling** with Luxon (IANA timezones, DST-aware)
+- **Session Reminders** with cron-based scheduling
+
+## 📖 API Documentation
+
+Once the server is running, interactive API documentation is available at:
+
+| URL | Description |
+|-----|-------------|
+| `http://localhost:5000/api/v1/docs` | Swagger UI — explore and test all endpoints |
+| `http://localhost:5000/api/v1/docs/spec.json` | Raw OpenAPI 3.0 spec (JSON) |
+
+### Using Swagger UI
+
+1. Open `http://localhost:5000/api/v1/docs` in your browser
+2. Click **Authorize** (🔒) and enter your JWT token: `Bearer <your_access_token>`
+3. Obtain a token via `POST /auth/login` or `POST /auth/register`
+4. Explore endpoints grouped by tag: **Auth**, **Users**, **Mentors**, **Payments**, **Wallets**, **Admin**
+
+The spec auto-updates on every server restart from JSDoc annotations in `src/routes/*.ts`.
 
 ## 📋 Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 20+ and npm
 - PostgreSQL 14+
 - Stellar account (testnet for development)
 
@@ -98,12 +122,21 @@ GET /health
 GET /api/v1
 ```
 
+### Timezone API
+```
+GET /api/v1/timezones - List all IANA timezones
+GET /api/v1/timezones/:identifier - Get timezone details
+```
+
 ### Coming Soon
 - `POST /api/v1/auth/register` - User registration
 - `POST /api/v1/auth/login` - User login
 - `GET /api/v1/users/:id` - Get user profile
 - `GET /api/v1/mentors` - List mentors
 - `POST /api/v1/bookings` - Create booking
+- `POST /api/v1/bookings/:id/confirm` - Confirm booking with auto-generated meeting URL
+- `GET /api/v1/bookings` - List user sessions with meeting links
+- `POST /api/v1/bookings` - Create booking (with timezone support)
 - `POST /api/v1/payments` - Process payment
 - `GET /api/v1/wallets/:id` - Get wallet info
 
@@ -121,11 +154,164 @@ GET /api/v1
 
 See `.env.example` for complete list.
 
-## 🧪 Testing
+### Meeting Provider Configuration
+
+For video meeting functionality, add these variables:
 
 ```bash
-npm test
+MEETING_PROVIDER=jitsi          # Options: daily, whereby, zoom, jitsi
+MEETING_API_KEY=your_api_key    # Required for Daily, Whereby, Zoom
+MEETING_ROOM_EXPIRY_MINUTES=30   # Meeting expires 30 min after session end
 ```
+
+📖 **See [Meeting Providers Guide](docs/meeting-providers.md) for detailed setup instructions.**
+
+## 🧪 Testing
+
+The project uses **Jest** with **Supertest** for comprehensive API integration testing. The test suite includes:
+
+- **Isolated Tests**: Each test runs with a clean database state
+- **Test Factories**: Helper functions to create test data (users, mentors, sessions, payments)
+- **HTTP Integration Tests**: Test actual HTTP requests against the Express app
+- **Coverage Reporting**: Minimum 70% coverage threshold enforced
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode (for development)
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+```
+
+### Test Database Setup
+
+Tests use a separate PostgreSQL database configured via `DATABASE_URL_TEST` environment variable.
+
+1. Create the test database:
+```bash
+createdb mentorminds_test
+```
+
+2. Configure `.env.test` (already provided) with your test database credentials
+
+3. Tables are automatically created and truncated between tests
+
+### Writing Tests
+
+#### Basic Test Structure
+
+```typescript
+import request from 'supertest';
+import app from '../app';
+import { createUser } from './factories/user.factory';
+import { authenticatedGet } from './helpers/request.helper';
+
+describe('Users API', () => {
+  it('should get user profile', async () => {
+    const user = await createUser({ role: 'user' });
+    const token = generateTestToken({ userId: user.id, email: user.email, role: user.role });
+    
+    const response = await authenticatedGet('/users/me', token);
+    
+    expect(response.status).toBe(200);
+    expect(response.body.email).toBe(user.email);
+  });
+});
+```
+
+#### Using Factories
+
+```typescript
+import { createUser, createMentor, createUsers } from './factories/user.factory';
+import { createSession } from './factories/session.factory';
+import { createPayment } from './factories/payment.factory';
+
+// Create a single user
+const user = await createUser({
+  email: 'custom@test.com',
+  role: 'admin',
+});
+
+// Create a mentor
+const mentor = await createMentor({
+  bio: 'Expert developer with 10 years experience',
+});
+
+// Create multiple users
+const users = await createUsers(5);
+
+// Create a session (requires existing users)
+const session = await createSession({
+  mentorId: mentor.id,
+  menteeId: user.id,
+  scheduledAt: new Date(),
+});
+
+// Create a payment
+const payment = await createPayment({
+  userId: user.id,
+  amount: 100,
+  type: 'deposit',
+});
+```
+
+#### Making Authenticated Requests
+
+```typescript
+import { 
+  authenticatedGet, 
+  authenticatedPost, 
+  authenticatedPut, 
+  authenticatedDelete 
+} from './helpers/request.helper';
+
+// GET request
+const response = await authenticatedGet('/users/me', token);
+
+// POST request with data
+const response = await authenticatedPost('/sessions', sessionData, token);
+
+// PUT request
+const response = await authenticatedPut('/users/profile', updateData, token);
+
+// DELETE request
+const response = await authenticatedDelete('/sessions/:id', token);
+```
+
+### Test Organization
+
+```
+src/
+├── __tests__/              # Test files
+│   ├── health.test.ts      # Health check tests
+│   └── ...                 # Other test files
+├── tests/
+│   ├── setup.ts            # Global test setup/teardown
+│   ├── factories/          # Test data factories
+│   │   ├── user.factory.ts
+│   │   ├── mentor.factory.ts
+│   │   ├── session.factory.ts
+│   │   ├── payment.factory.ts
+│   │   └── index.ts
+│   └── helpers/            # Test helpers
+│       ├── request.helper.ts
+│       └── index.ts
+```
+
+### Coverage Reports
+
+After running `npm run test:coverage`, reports are generated in:
+
+- `coverage/lcov-report/index.html` - HTML report (open in browser)
+- `coverage/coverage-summary.json` - JSON summary
+- `coverage/coverage-final.json` - Final coverage data
+
+CI will fail if coverage drops below 70%.
 
 ## 📝 Scripts
 
@@ -135,6 +321,9 @@ npm test
 - `npm run lint` - Run ESLint
 - `npm run lint:fix` - Fix ESLint errors
 - `npm run format` - Format code with Prettier
+- `npm test` - Run all tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Run tests with coverage report
 
 ## 🔒 Security
 
@@ -156,6 +345,8 @@ npm test
 - **Validation**: Zod
 - **Security**: Helmet, CORS
 - **Logging**: Morgan
+- **Timezone**: Luxon (IANA timezones, DST-aware)
+- **Scheduling**: Cron (session reminders)
 
 ## 🚧 Development Roadmap
 
@@ -175,7 +366,10 @@ npm test
 
 - [API Documentation](./docs/API.md) (coming soon)
 - [Database Schema](./docs/DATABASE.md) (coming soon)
-- [Stellar Integration](./docs/STELLAR.md) (coming soon)
+- [Stellar Integration](./docs/STELLAR_SERVICE.md)
+- [Timezone Handling Guide](./docs/timezone-handling.md)
+- [DST Edge Cases](./docs/dst-edge-cases.md)
+- [Implementation Summary](./docs/IMPLEMENTATION_SUMMARY.md)
 
 ## 🤝 Contributing
 
@@ -183,6 +377,8 @@ npm test
 2. Make your changes
 3. Run tests and linting
 4. Submit a pull request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming and PR conventions.
 
 ## 📄 License
 
@@ -200,3 +396,40 @@ For issues and questions:
 **Status**: 🟢 Active Development
 
 Built with ❤️ for the MentorMinds Stellar platform
+
+## 🐳 Docker & Docker Compose
+
+The API is containerized with a **multi-stage Dockerfile** (`builder` compiles TypeScript; `runner` is `node:20-bookworm-slim`, runs as non-root `appuser`, production dependencies only). The HTTP health check uses `GET /health` on `PORT` (default `5000`).
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose v2
+- A project `.env` created from `.env.example` — for Compose, set `DATABASE_URL`, `DB_HOST`, `DB_*`, and `REDIS_URL` to use Docker service hostnames (`postgres`, `redis`), not `localhost`
+
+### Scripts
+
+| Command | Description |
+|--------|-------------|
+| `npm run docker:build` | Build the API image (`runner` target) |
+| `npm run docker:dev` | Postgres + Redis + API with `src/` mounted for hot reload (`ts-node-dev`) |
+| `npm run docker:test` | Run Jest (with coverage) against Postgres and Redis in containers |
+
+### Production-style stack (no hot reload)
+
+```bash
+cp .env.example .env
+# Edit .env: set DATABASE_URL=postgresql://USER:PASS@postgres:5432/DBNAME, DB_HOST=postgres, REDIS_URL=redis://redis:6379
+docker compose up --build
+```
+
+### Integration tests in Docker
+
+Uses `.env.docker.test` (committed) for test DB/Redis URLs inside the Compose network:
+
+```bash
+npm run docker:test
+```
+
+### Image size
+
+The final `runner` image uses Debian slim and `npm ci --omit=dev`. If the image exceeds ~200MB on your machine, prune unused images (`docker image prune`) and ensure you are measuring the `runner` stage, not the `builder` stage.

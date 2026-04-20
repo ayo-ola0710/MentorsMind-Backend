@@ -1,0 +1,68 @@
+import pool from '../config/database';
+
+export interface ExportJob {
+  id: string;
+  user_id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  file_path: string | null;
+  error_message: string | null;
+  expires_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export const ExportJobModel = {
+  async initializeTable(): Promise<void> {
+    const query = `
+      CREATE TABLE IF NOT EXISTS export_jobs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        file_path TEXT,
+        error_message TEXT,
+        expires_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_export_jobs_user_id ON export_jobs(user_id);
+      CREATE INDEX IF NOT EXISTS idx_export_jobs_status ON export_jobs(status);
+    `;
+    await pool.query(query);
+  },
+
+  async create(userId: string): Promise<ExportJob> {
+    const query = `
+      INSERT INTO export_jobs (user_id, status)
+      VALUES ($1, 'pending')
+      RETURNING *;
+    `;
+    const { rows } = await pool.query<ExportJob>(query, [userId]);
+    return rows[0];
+  },
+
+  async findById(id: string): Promise<ExportJob | null> {
+    const query = 'SELECT * FROM export_jobs WHERE id = $1;';
+    const { rows } = await pool.query<ExportJob>(query, [id]);
+    return rows[0] || null;
+  },
+
+  async updateStatus(
+    id: string,
+    status: ExportJob['status'],
+    filePath?: string,
+    errorMessage?: string,
+    expiresAt?: Date
+  ): Promise<void> {
+    const query = `
+      UPDATE export_jobs
+      SET status = $2,
+          file_path = COALESCE($3, file_path),
+          error_message = COALESCE($4, error_message),
+          expires_at = COALESCE($5, expires_at),
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1;
+    `;
+    await pool.query(query, [id, status, filePath, errorMessage, expiresAt]);
+  },
+};

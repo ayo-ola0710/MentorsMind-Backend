@@ -1,37 +1,33 @@
 import { Pool } from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import config from './index';
+import { logger } from '../utils/logger';
 
 export const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'mentorminds',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD,
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionString: config.db.url,
+  host: config.db.host,
+  port: config.db.port,
+  database: config.db.name,
+  user: config.db.user,
+  password: config.db.password,
+  max: config.db.poolMax,
+  idleTimeoutMillis: config.db.idleTimeoutMs,
+  connectionTimeoutMillis: config.db.connectionTimeoutMs,
 });
 
-// Test database connection
-export const testConnection = async () => {
+export const testConnection = async (): Promise<boolean> => {
   try {
     const client = await pool.connect();
-    console.log('✅ Database connected successfully');
+    logger.info('Database connected successfully');
     client.release();
     return true;
   } catch (error) {
-    console.error('❌ Database connection failed:', error);
+    logger.error('Database connection failed', { error: error instanceof Error ? error.message : error });
     return false;
   }
 };
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  await pool.end();
-  console.log('Database pool closed');
-  process.exit(0);
+pool.on('error', (err) => {
+  logger.error('Unexpected database pool error', { error: err.message });
 });
 
 export default pool;
