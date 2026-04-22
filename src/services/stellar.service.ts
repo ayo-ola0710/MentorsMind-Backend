@@ -1,16 +1,10 @@
 // @ts-nocheck
-import {
-  Horizon,
-  TransactionBuilder,
-  StrKey,
-  Operation,
-  Asset,
-} from "@stellar/stellar-sdk";
-import { server, backupServer, networkPassphrase } from "../config/stellar";
-import { CacheService } from "./cache.service";
-import { CacheKeys, CacheTTL } from "../utils/cache-key.utils";
-import { logger } from "../utils/logger.utils";
-import { parseAccountInfo, withRetry, TtlCache } from "../utils/stellar.utils";
+import { Horizon, TransactionBuilder, StrKey, Operation, Asset } from '@stellar/stellar-sdk';
+import { server, backupServer, networkPassphrase, getPlatformKeypair } from '../config/stellar';
+import { CacheService } from './cache.service';
+import { CacheKeys, CacheTTL } from '../utils/cache-key.utils';
+import { logger } from '../utils/logger.utils';
+import { parseAccountInfo, withRetry, TtlCache } from '../utils/stellar.utils';
 import type {
   StellarAccountInfo,
   StellarTransactionResult,
@@ -101,6 +95,42 @@ class StellarService {
       resultXdr: result.result_xdr,
       envelopeXdr: result.envelope_xdr,
     };
+  }
+
+  /**
+   * Build a signed refund transaction XDR from platform to user.
+   * @param toPublicKey - Recipient's Stellar public key
+   * @param amount - Amount to refund
+   * @param asset - Asset to refund (default native XLM)
+   * @returns Signed transaction envelope XDR
+   */
+  async buildRefundTransaction(
+    toPublicKey: string,
+    amount: string,
+    asset: Asset = Asset.native(),
+  ): Promise<string> {
+    const keypair = getPlatformKeypair();
+    if (!keypair) {
+      throw new Error('Platform keypair not configured');
+    }
+
+    const account = await this.getAccount(keypair.publicKey());
+    const txBuilder = new TransactionBuilder(account, {
+      fee: '100',
+      networkPassphrase,
+    });
+
+    txBuilder.addOperation(
+      Operation.payment({
+        destination: toPublicKey,
+        asset,
+        amount,
+      }),
+    );
+
+    const tx = txBuilder.setTimeout(30).build();
+    tx.sign(keypair);
+    return tx.toEnvelope().toXDR('base64');
   }
 
   /**

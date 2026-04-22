@@ -12,6 +12,8 @@ import pool from "../config/database";
 import { CalendarService } from "./calendar.service";
 import { SorobanEscrowService } from './sorobanEscrow.service';
 import videoSessionService from "./videoSession.service";
+import { PaymentsService } from './payments.service';
+import { QueueService } from './queue.service';
 
 export interface CreateBookingData {
   menteeId: string;
@@ -395,7 +397,10 @@ export const BookingsService = {
           escrowId: metadata.escrow_id,
           refundedBy: userId,
           contractAddress: metadata.escrow_contract_address || undefined,
+          amount: refundInfo.eligible ? String(parseFloat(booking.amount) * (refundInfo.refundPercentage / 100)) : undefined,
         });
+        // Update booking payment_status to 'refunded' after Soroban refund
+        await BookingModel.update(bookingId, { paymentStatus: 'refunded' });
       } else {
         logger.warn('Skipping Soroban refund: no escrow metadata on booking', {
           bookingId,
@@ -406,7 +411,7 @@ export const BookingsService = {
     const updated = await BookingModel.update(bookingId, {
       status: "cancelled",
       cancellationReason: reason || "No reason provided",
-      paymentStatus: refundInfo.eligible ? "refunded" : booking.payment_status,
+      paymentStatus: refundInfo.eligible ? "refund_pending" : booking.payment_status,
     });
 
     if (!updated) {
@@ -418,7 +423,17 @@ export const BookingsService = {
     await CacheService.del(CacheKeys.sessionList(booking.mentor_id));
     logger.debug("Booking cache invalidated on cancellation", { bookingId });
 
-    // TODO: Process refund via Stellar if eligible
+    if (refundInfo.eligible && booking.transaction_id) {
+      await QueueService.submitStellarTx({
+        type: 'refund',
+        paymentId: booking.transaction_id, // This needs to be the original transaction ID
+        amount: String(parseFloat(booking.amount) * (refundInfo.refundPercentage / 100)),
+        currency: booking.currency,
+        userId: booking.mentee_id,
+        description: refundInfo.reason,
+      });
+      logger.info('Refund job enqueued', { bookingId, refundInfo });
+    }
 
     // Emit session:updated event to both mentor and mentee
     SocketService.emitToUser(booking.mentor_id, "session:updated", {

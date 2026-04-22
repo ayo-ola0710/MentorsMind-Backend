@@ -64,6 +64,7 @@ export interface RefundSorobanEscrowInput {
   escrowId: string;
   refundedBy: string;
   contractAddress?: string;
+  amount?: string;
 }
 
 export interface OpenSorobanDisputeInput {
@@ -277,10 +278,14 @@ class SorobanEscrowServiceImpl {
 
   async refund(input: RefundSorobanEscrowInput): Promise<SorobanInvocationResult> {
     const contractAddress = this.resolveContractAddress(input.contractAddress);
+    const args = [input.escrowId];
+    if (input.amount) {
+      args.push(input.amount);
+    }
     const invocation = {
       contractAddress,
       method: 'refund' as const,
-      args: [input.escrowId],
+      args,
     };
 
     return executeSorobanInvocation(
