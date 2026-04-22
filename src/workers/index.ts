@@ -18,3 +18,4 @@ export { reportWorker } from './report.worker';
 export { sessionReminderWorker } from './sessionReminder.worker';
 export { notificationCleanupWorker } from './notificationCleanup.worker';
 export { startScheduler, stopScheduler } from './scheduler';
+export { webhookDeliveryWorker } from '../jobs/webhookDelivery.job';
