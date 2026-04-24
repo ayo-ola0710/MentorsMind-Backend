@@ -53,6 +53,7 @@ RecommendationService.initialize().catch((err: unknown) => {
 
 import goalRoutes from "../goal.routes";
 import learnerRoutes from "../learner.routes";
+import webhookRoutes from "../webhooks.routes";
 
 router.use("/auth", authRoutes);
 router.use("/users", usersRoutes);
