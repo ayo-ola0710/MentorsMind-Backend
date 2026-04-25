@@ -10,6 +10,12 @@ import {
 } from "../utils/ical.utils";
 import { logger } from "../utils/logger";
 import { EncryptionUtil } from "../utils/encryption.utils";
+import { NotificationService } from "./notification.service";
+import {
+  NotificationType,
+  NotificationChannel,
+  NotificationPriority,
+} from "../models/notifications.model";
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -18,6 +24,49 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 const GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar.events"];
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function isInvalidGrantError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes("invalid_grant");
+  }
+  return false;
+}
+
+async function disconnectExpiredCalendar(userId: string): Promise<void> {
+  await pool.query(
+    `UPDATE users
+       SET google_calendar_access_token  = NULL,
+           google_calendar_refresh_token = NULL,
+           google_calendar_token_expiry  = NULL,
+           google_calendar_connected     = false,
+           encrypted_access_token        = NULL,
+           encrypted_refresh_token       = NULL
+       WHERE id = $1`,
+    [userId],
+  );
+
+  try {
+    await NotificationService.sendNotification({
+      userId,
+      type: NotificationType.CALENDAR_CONNECTION_EXPIRED,
+      channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL],
+      priority: NotificationPriority.HIGH,
+      title: "Calendar Connection Expired",
+      message:
+        "Your Google Calendar connection has expired. Please reconnect.",
+    });
+  } catch (notifyErr) {
+    logger.error("Failed to send calendar expiry notification", {
+      userId,
+      error: notifyErr,
+    });
+  }
+}
 
 // ---------------------------------------------------------------------------
 // iCal helpers
@@ -258,6 +307,26 @@ export const CalendarService = {
       );
     });
 
+    // Proactively refresh if the access token is expired
+    const expiryDate = rows[0].expiry_date
+      ? new Date(rows[0].expiry_date).getTime()
+      : undefined;
+    if (expiryDate && Date.now() >= expiryDate) {
+      try {
+        await client.refreshAccessToken();
+      } catch (err) {
+        if (isInvalidGrantError(err)) {
+          logger.warn("Google Calendar refresh token invalid_grant", {
+            userId,
+          });
+          await disconnectExpiredCalendar(userId);
+          return null;
+        }
+        logger.error("Failed to refresh access token", { userId, error: err });
+        return null;
+      }
+    }
+
     return client;
   },
 
@@ -341,11 +410,19 @@ export const CalendarService = {
           );
         }
       } catch (err) {
-        logger.error("Failed to create Google Calendar event", {
-          bookingId,
-          participantId,
-          error: err,
-        });
+        if (isInvalidGrantError(err)) {
+          logger.warn("invalid_grant during calendar event creation", {
+            bookingId,
+            participantId,
+          });
+          await disconnectExpiredCalendar(participantId);
+        } else {
+          logger.error("Failed to create Google Calendar event", {
+            bookingId,
+            participantId,
+            error: err,
+          });
+        }
       }
     }
   },
@@ -400,11 +477,19 @@ export const CalendarService = {
           sendUpdates: "all",
         });
       } catch (err) {
-        logger.error("Failed to update Google Calendar event", {
-          bookingId,
-          participantId,
-          error: err,
-        });
+        if (isInvalidGrantError(err)) {
+          logger.warn("invalid_grant during calendar event update", {
+            bookingId,
+            participantId,
+          });
+          await disconnectExpiredCalendar(participantId);
+        } else {
+          logger.error("Failed to update Google Calendar event", {
+            bookingId,
+            participantId,
+            error: err,
+          });
+        }
       }
     }
   },
@@ -440,11 +525,19 @@ export const CalendarService = {
           sendUpdates: "all",
         });
       } catch (err) {
-        logger.error("Failed to delete Google Calendar event", {
-          bookingId,
-          participantId,
-          error: err,
-        });
+        if (isInvalidGrantError(err)) {
+          logger.warn("invalid_grant during calendar event deletion", {
+            bookingId,
+            participantId,
+          });
+          await disconnectExpiredCalendar(participantId);
+        } else {
+          logger.error("Failed to delete Google Calendar event", {
+            bookingId,
+            participantId,
+            error: err,
+          });
+        }
       }
     }
   },
