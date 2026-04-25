@@ -1,25 +1,25 @@
-# Health Monitoring & Metrics Implementation TODO
+# TODO: Fix confirmPayment Verifies Wrong Thing on Stellar
 
-## Current Progress: Step 5/12 (Health service & controller created)
+## Plan
 
-### Steps:
+### 1. Update `src/services/stellar.service.ts`
 
-1. ✅ Install `prom-client` dependency
-2. ✅ `src/config/monitoring.config.ts`
-3. ✅ `src/services/health.service.ts`
-4. ✅ `src/controllers/health.controller.ts`
-5. ✅ `src/middleware/metrics.middleware.ts`
-6. ✅ `src/config/index.ts`
-7. Update `src/app.ts` - Add metrics middleware
-8. Update `src/routes/index.ts` - Route /health and /metrics to controller
-9. ✅ Tests updated
-10. ✅ Grafana dashboard created
-11. ✅ docs/monitoring.md created
-12. Test & Verify
+- [x] Enhance `getTransaction()` to also return `source_account`
+- [x] Add `getTransactionOperations(txHash)` method to fetch operations for a transaction
 
-**Notes:**
-- Update TODO.md after each major step
-- Use prom-client for Prometheus metrics
-- Health checks: PostgreSQL (pool.query), Redis (ping), Stellar (ledgers.call), system (uptime/memory)
-- Metrics: request rates, durations (p50/95/99), errors, DB/Redis stats
+### 2. Update `src/services/payments.service.ts`
 
+- [x] Replace `getAccount()` call with `getTransaction(stellarTxHash)`
+- [x] Assert `transaction.successful === true`
+- [x] Verify `transaction.source_account` matches `payment.from_address`
+- [x] Verify payment amount in transaction operations matches `payment.amount`
+- [x] Return 400 error if any verification fails (remove silent catch)
+
+### 3. Update Tests
+
+- [x] `src/__tests__/unit/payments.service.test.ts` — update mocks, add 400 validation tests
+- [x] `src/__tests__/services/payments.service.unit.test.ts` — update mocks, add 400 validation tests
+
+### 4. Run tests to verify
+
+- [ ] Run payment service unit tests
