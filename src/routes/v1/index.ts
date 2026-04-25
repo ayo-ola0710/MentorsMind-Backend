@@ -16,6 +16,7 @@ import authRoutes from "../auth.routes";
 import usersRoutes from "../users.routes";
 import exportRoutes from "../export.routes";
 import adminRoutes from "../admin.routes";
+import moderationRoutes from "../moderation.routes";
 import bookingsRoutes from "../bookings.routes";
 import timezoneRoutes from "../timezone.routes";
 import analyticsRoutes from "../analytics.routes";
@@ -53,7 +54,7 @@ RecommendationService.initialize().catch((err: unknown) => {
 
 import goalRoutes from "../goal.routes";
 import learnerRoutes from "../learner.routes";
-import webhookRoutes from "../webhooks.routes";
+//import webhookRoutes from "../webhooks.routes";
 
 router.use("/auth", authRoutes);
 router.use("/users", usersRoutes);
@@ -62,6 +63,7 @@ router.use("/learners", learnerRoutes);
 router.use("/", exportRoutes);
 router.use("/consent", consentRoutes);
 router.use("/admin", adminRoutes);
+router.use("/admin/moderation", moderationRoutes);
 router.use("/bookings", bookingsRoutes);
 router.use("/timezones", timezoneRoutes);
 router.use("/analytics", analyticsRoutes);

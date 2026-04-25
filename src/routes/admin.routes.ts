@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { AdminController } from "../controllers/admin.controller";
 import { AnalyticsController } from "../controllers/analytics.controller";
-import { ModerationController } from "../controllers/moderation.controller";
 import { VerificationController } from "../controllers/verification.controller";
 import { RevenueReportController } from "../controllers/revenueReport.controller";
 import { JwksController } from "../controllers/jwks.controller";
@@ -643,7 +642,10 @@ router.get("/audit-log/stats", asyncHandler(AdminController.getAuditLogStats));
  *       500:
  *         description: Failed to render template
  */
-router.post("/email/preview/:template", asyncHandler(AdminController.previewEmailTemplate));
+router.post(
+  "/email/preview/:template",
+  asyncHandler(AdminController.previewEmailTemplate),
+);
 
 // ── Audit Log Routes ─────────────────────────────────────────────────────────
 
@@ -957,8 +959,14 @@ router.get("/reports/export", asyncHandler(AdminController.exportAuditLogs));
  *       201:
  *         description: IP rule created
  */
-router.get("/security/blocklist", asyncHandler(AdminController.listBlocklistRules));
-router.post("/security/blocklist", asyncHandler(AdminController.addBlocklistRule));
+router.get(
+  "/security/blocklist",
+  asyncHandler(AdminController.listBlocklistRules),
+);
+router.post(
+  "/security/blocklist",
+  asyncHandler(AdminController.addBlocklistRule),
+);
 
 /**
  * @swagger
@@ -977,7 +985,10 @@ router.post("/security/blocklist", asyncHandler(AdminController.addBlocklistRule
  *       200:
  *         description: IP rule removed
  */
-router.delete("/security/blocklist/:id", asyncHandler(AdminController.removeBlocklistRule));
+router.delete(
+  "/security/blocklist/:id",
+  asyncHandler(AdminController.removeBlocklistRule),
+);
 
 /**
  * @swagger
@@ -1000,131 +1011,10 @@ router.delete("/security/blocklist/:id", asyncHandler(AdminController.removeBloc
  *       201:
  *         description: Admin allowlist rule added
  */
-router.post("/security/allowlist", asyncHandler(AdminController.addAdminAllowlistRule));
-
-// ── Moderation Routes ────────────────────────────────────────────────────────
-
-/**
- * @swagger
- * /admin/moderation/queue:
- *   get:
- *     summary: Get moderation queue
- *     tags: [Admin, Moderation]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: limit
- *         in: query
- *         schema: { type: integer, default: 50 }
- *       - name: offset
- *         in: query
- *         schema: { type: integer, default: 0 }
- *     responses:
- *       200:
- *         description: Moderation queue items
- */
-router.get("/moderation/queue", asyncHandler(ModerationController.getQueue));
-
-/**
- * @swagger
- * /admin/moderation/{id}/approve:
- *   put:
- *     summary: Approve flagged content
- *     tags: [Admin, Moderation]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: id
- *         in: path
- *         required: true
- *         schema: { type: string, format: uuid }
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               notes: { type: string }
- *     responses:
- *       200:
- *         description: Content approved
- */
-router.put(
-  "/moderation/:id/approve",
-  asyncHandler(ModerationController.approveContent),
+router.post(
+  "/security/allowlist",
+  asyncHandler(AdminController.addAdminAllowlistRule),
 );
-
-/**
- * @swagger
- * /admin/moderation/{id}/reject:
- *   put:
- *     summary: Reject flagged content
- *     tags: [Admin, Moderation]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: id
- *         in: path
- *         required: true
- *         schema: { type: string, format: uuid }
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               notes: { type: string }
- *     responses:
- *       200:
- *         description: Content rejected
- */
-router.put(
-  "/moderation/:id/reject",
-  asyncHandler(ModerationController.rejectContent),
-);
-
-/**
- * @swagger
- * /admin/moderation/{id}/escalate:
- *   put:
- *     summary: Escalate flag to senior admin
- *     tags: [Admin, Moderation]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: id
- *         in: path
- *         required: true
- *         schema: { type: string, format: uuid }
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               notes: { type: string }
- *     responses:
- *       200:
- *         description: Flag escalated
- */
-router.put(
-  "/moderation/:id/escalate",
-  asyncHandler(ModerationController.escalateFlag),
-);
-
-/**
- * @swagger
- * /admin/moderation/stats:
- *   get:
- *     summary: Get moderation statistics
- *     tags: [Admin, Moderation]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Moderation statistics
- */
-router.get("/moderation/stats", asyncHandler(ModerationController.getStats));
 
 // ── Verification Routes ──────────────────────────────────────────────────────
 
