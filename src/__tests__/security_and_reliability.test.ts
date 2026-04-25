@@ -1,5 +1,6 @@
 import { CalendarService } from '../services/calendar.service';
 import HealthService from '../services/health.service';
+import { AdminService } from '../services/admin.service';
 import { pool } from '../config/database';
 import { EncryptionUtil } from '../utils/encryption.utils';
 import { google } from 'googleapis';
@@ -11,6 +12,11 @@ jest.mock('../utils/logger');
 jest.mock('../queues/email.queue', () => ({
   emailQueue: {
     getJobCounts: jest.fn().mockResolvedValue({ active: 5, waiting: 10 }),
+  },
+}));
+jest.mock('../services/notification.service', () => ({
+  NotificationService: {
+    sendNotification: jest.fn().mockResolvedValue({ success: true, notificationIds: ['n1'], errors: [] }),
   },
 }));
 
@@ -252,5 +258,58 @@ describe('Security and Reliability Improvements', () => {
         expect(status.stellar).toBe('DOWN');
         expect(status.redis).toBe('DOWN');
       });
+  });
+
+  describe('AdminService.listPayments SQL Parameter Fix', () => {
+    it('should use proper $N placeholders in both data and count queries', async () => {
+      (pool.query as jest.Mock)
+        .mockResolvedValueOnce({ rows: [{ id: 'tx-1', created_at: new Date() }] })
+        .mockResolvedValueOnce({ rows: [{ count: '1' }] });
+
+      await AdminService.listPayments(10, 0, '2024-01-01', '2024-12-31');
+
+      const calls = (pool.query as jest.Mock).mock.calls;
+      expect(calls).toHaveLength(2);
+
+      const dataQuery = calls[0][0] as string;
+      const dataParams = calls[0][1] as unknown[];
+      const countQuery = calls[1][0] as string;
+      const countParams = calls[1][1] as unknown[];
+
+      // Data query must use $N placeholders, not bare numbers
+      expect(dataQuery).toMatch(/created_at >= \$\d+/);
+      expect(dataQuery).toMatch(/created_at <= \$\d+/);
+      expect(dataQuery).toMatch(/LIMIT \$\d+/);
+      expect(dataQuery).toMatch(/OFFSET \$\d+/);
+
+      // Count query must also use $N placeholders
+      expect(countQuery).toMatch(/created_at >= \$\d+/);
+      expect(countQuery).toMatch(/created_at <= \$\d+/);
+
+      // Count query must NOT contain LIMIT or OFFSET
+      expect(countQuery).not.toContain('LIMIT');
+      expect(countQuery).not.toContain('OFFSET');
+
+      // Verify parameter values are correct
+      expect(dataParams).toEqual(['2024-01-01', '2024-12-31', 10, 0]);
+      expect(countParams).toEqual(['2024-01-01', '2024-12-31']);
+    });
+
+    it('should work without date filters', async () => {
+      (pool.query as jest.Mock)
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ count: '0' }] });
+
+      await AdminService.listPayments(50, 0);
+
+      const calls = (pool.query as jest.Mock).mock.calls;
+      const dataQuery = calls[0][0] as string;
+      const countQuery = calls[1][0] as string;
+
+      expect(dataQuery).toContain("type IN ('payment', 'mentor_payout')");
+      expect(countQuery).toContain("type IN ('payment', 'mentor_payout')");
+      expect(dataQuery).not.toContain('created_at >=');
+      expect(countQuery).not.toContain('created_at >=');
+    });
   });
 });
